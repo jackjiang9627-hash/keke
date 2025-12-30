@@ -40,36 +40,41 @@
             </div>
           </div>
           
-          <!-- 消息列表 -->
-          <div v-for="(msg, index) in messages" :key="index" class="message" :class="msg.role">
-            <div class="message-avatar">
-              <el-icon v-if="msg.role === 'assistant'" size="16"><ChatDotRound /></el-icon>
-              <el-icon v-else size="16"><User /></el-icon>
+          <!-- 消息容器 -->
+          <div class="messages-container" ref="messagesContainerRef">
+            <!-- 消息列表 -->
+            <div v-for="(msg, index) in messages" :key="index" class="message" :class="msg.role">
+              <div class="message-avatar">
+                <el-icon v-if="msg.role === 'assistant'" size="18"><Service /></el-icon>
+                <el-icon v-else size="16"><User /></el-icon>
+              </div>
+              <div class="message-content">
+                <div class="message-text" v-html="formatMessage(msg.content)"></div>
+              </div>
             </div>
-            <div class="message-content">
-              <div class="message-text" v-html="formatMessage(msg.content)"></div>
-            </div>
-          </div>
-          
-          <!-- 加载中 -->
-          <div v-if="loading" class="message assistant">
-            <div class="message-avatar">
-              <el-icon size="16"><ChatDotRound /></el-icon>
-            </div>
-            <div class="message-content">
-              <div class="typing-indicator">
-                <span></span><span></span><span></span>
+            
+            <!-- 加载中 -->
+            <div v-if="loading" class="message assistant">
+              <div class="message-avatar">
+                <el-icon size="18"><Service /></el-icon>
+              </div>
+              <div class="message-content">
+                <div class="typing-indicator">
+                  <span></span><span></span><span></span>
+                </div>
               </div>
             </div>
           </div>
         </div>
         
+        <!-- 输入区域固定在底部 -->
         <div class="panel-footer">
           <el-input
             v-model="inputMessage"
             placeholder="输入您的问题..."
             @keydown.enter.exact.prevent="sendMessage"
             :disabled="loading"
+            ref="inputRef"
           >
             <template #append>
               <el-button 
@@ -87,14 +92,18 @@
 
 <script setup>
 import { ref, nextTick } from 'vue'
-import { ChatDotRound, Close, User, Promotion, Finished, Folder } from '@element-plus/icons-vue'
+import { ChatDotRound, Close, User, Promotion, Finished, Folder, Service } from '@element-plus/icons-vue'
 import chatApi from '@/api/chat'
 
 const visible = ref(false)
 const messagesRef = ref(null)
+const inputRef = ref(null)
 const inputMessage = ref('')
 const loading = ref(false)
 const messages = ref([])
+
+// 消息容器引用
+const messagesContainerRef = ref(null)
 
 // 面板宽度控制
 const panelWidth = ref(Math.floor(window.innerWidth / 2)) // 默认50%宽度
@@ -176,8 +185,9 @@ const formatMessage = (content) => {
 
 const scrollToBottom = async () => {
   await nextTick()
-  if (messagesRef.value) {
-    messagesRef.value.scrollTop = messagesRef.value.scrollHeight
+  if (messagesContainerRef.value) {
+    // 滚动到消息容器的底部
+    messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
   }
 }
 </script>
@@ -292,14 +302,25 @@ const scrollToBottom = async () => {
 
 .panel-body {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 消息容器 */
+.messages-container {
+  flex: 1;
   overflow-y: auto;
   padding: 16px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 欢迎区域 */
 .welcome {
   text-align: center;
   padding: 40px 20px;
+  flex-shrink: 0;
 }
 
 .welcome-icon {
@@ -356,8 +377,8 @@ const scrollToBottom = async () => {
 }
 
 .message-avatar {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -368,6 +389,7 @@ const scrollToBottom = async () => {
 .message.assistant .message-avatar {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .message.user .message-avatar {
@@ -422,10 +444,78 @@ const scrollToBottom = async () => {
   30% { transform: translateY(-4px); }
 }
 
-/* 输入区域 */
+/* 输入区域固定在底部 */
 .panel-footer {
-  padding: 16px;
-  border-top: 1px solid #f0f0f0;
+  padding: 16px 20px;
+  border-top: none;
+  background: linear-gradient(135deg, #f8f9fc 0%, #eef1f8 100%);
+  z-index: 1;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.panel-footer :deep(.el-input__wrapper) {
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+  border: 2px solid #e0e6f0;
+  border-radius: 24px;
+  padding: 8px 16px;
+  transition: all 0.3s;
+}
+
+.panel-footer :deep(.el-input__wrapper:hover) {
+  border-color: #667eea;
+}
+
+.panel-footer :deep(.el-input__wrapper:focus-within) {
+  border-color: #667eea;
+  box-shadow: 0 2px 12px rgba(102, 126, 234, 0.25);
+}
+
+.panel-footer :deep(.el-input__inner) {
+  font-size: 14px;
+}
+
+.panel-footer :deep(.el-input-group__append) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 0 24px 24px 0;
+  padding: 0 16px;
+  box-shadow: none;
+}
+
+.panel-footer :deep(.el-input-group__append .el-button) {
+  color: #fff;
+  border: none;
+  background: transparent;
+  padding: 8px;
+}
+
+.panel-footer :deep(.el-input-group__append .el-button:hover:not(:disabled)) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.panel-footer :deep(.el-input-group__append .el-button.is-disabled) {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* 动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  transform: translateX(100%);
 }
 
 /* 动画 */
