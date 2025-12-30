@@ -16,6 +16,10 @@ Thumbs.db
 # Logs
 *.log
 
+# Local config (contains sensitive data)
+application-local.yml
+**/application-local.yml
+
 # Build artifacts
 dist/
 
