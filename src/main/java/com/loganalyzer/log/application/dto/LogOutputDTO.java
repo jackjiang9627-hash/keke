@@ -24,6 +24,7 @@ public class LogOutputDTO {
     private String id;
     private String rawContent;
     private String cleanedContent;
+    private String message;  // 日志消息（清洗后的内容或原始内容）
     private String level;
     private String levelDescription;
     private String application;

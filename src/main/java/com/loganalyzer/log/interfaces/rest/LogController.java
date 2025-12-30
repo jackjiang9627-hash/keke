@@ -4,6 +4,7 @@ import com.loganalyzer.log.application.dto.LogInputDTO;
 import com.loganalyzer.log.application.dto.LogOutputDTO;
 import com.loganalyzer.log.application.dto.LogStatisticsDTO;
 import com.loganalyzer.log.application.service.LogApplicationService;
+import com.loganalyzer.shared.application.dto.PageDTO;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -80,11 +81,31 @@ public class LogController {
      * GET /api/v1/logs?page=0&size=20
      */
     @GetMapping
-    public ResponseEntity<List<LogOutputDTO>> getAllLogs(
+    public ResponseEntity<PageDTO<LogOutputDTO>> getAllLogs(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        List<LogOutputDTO> results = logApplicationService.findAll(page, size);
-        return ResponseEntity.ok(results);
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) String keyword) {
+        
+        List<LogOutputDTO> results;
+        long total;
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            // 关键词搜索
+            results = logApplicationService.searchByKeyword(keyword);
+            total = results.size();
+        } else if (level != null && !level.isEmpty()) {
+            // 按级别查询
+            results = logApplicationService.findByLevel(level);
+            total = results.size();
+        } else {
+            // 分页查询
+            results = logApplicationService.findAll(page, size);
+            total = logApplicationService.count();
+        }
+        
+        PageDTO<LogOutputDTO> pageResult = PageDTO.of(results, page, size, total);
+        return ResponseEntity.ok(pageResult);
     }
 
     /**

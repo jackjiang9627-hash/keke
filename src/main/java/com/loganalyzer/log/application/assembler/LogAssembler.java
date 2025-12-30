@@ -30,10 +30,16 @@ public class LogAssembler {
 
         LogSource source = logEntry.getSource();
         
+        // message 优先使用清洗后的内容，否则使用原始内容
+        String message = logEntry.getCleanedContent() != null 
+                ? logEntry.getCleanedContent() 
+                : logEntry.getRawContent();
+        
         return LogOutputDTO.builder()
                 .id(logEntry.getId().getValue())
                 .rawContent(logEntry.getRawContent())
                 .cleanedContent(logEntry.getCleanedContent())
+                .message(message)
                 .level(logEntry.getLevel().name())
                 .levelDescription(logEntry.getLevel().getDescription())
                 .application(source != null ? source.getApplication() : null)
