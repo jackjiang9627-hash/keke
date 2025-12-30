@@ -1,0 +1,4 @@
+# Python依赖
+py4j>=0.10.9
+sentence-transformers>=2.2.0
+torch>=2.0.0
