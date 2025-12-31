@@ -5,13 +5,12 @@ import com.loganalyzer.assistant.application.dto.CaseOutputDTO;
 import com.loganalyzer.shared.application.dto.PageDTO;
 import com.loganalyzer.assistant.domain.entity.CaseEntry;
 import com.loganalyzer.assistant.domain.service.CaseDomainService;
+import com.loganalyzer.shared.infrastructure.excel.ExcelBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -26,6 +25,7 @@ import java.util.Optional;
 public class CaseExcelService {
 
     private static final String[] HEADERS = {"标题", "摘要", "超链接", "详细内容"};
+    private static final int[] COLUMN_WIDTHS = {8000, 12000, 8000, 15000};
     
     private final CaseApplicationService caseApplicationService;
     private final CaseDomainService caseDomainService;
@@ -43,78 +43,36 @@ public class CaseExcelService {
     public byte[] exportToExcel() throws IOException {
         List<String> modules = caseApplicationService.getAllModuleNames();
         
-        try (Workbook workbook = new XSSFWorkbook()) {
-            // 创建表头样式
-            CellStyle headerStyle = createHeaderStyle(workbook);
-            CellStyle contentStyle = createContentStyle(workbook);
-            
+        ExcelBuilder builder = ExcelBuilder.create();
+        
+        if (modules.isEmpty()) {
+            // 没有模块，创建默认sheet
+            builder.sheet("默认")
+                    .headers(HEADERS)
+                    .columnWidths(COLUMN_WIDTHS);
+        } else {
             for (String moduleName : modules) {
-                if (moduleName == null || moduleName.isEmpty()) {
-                    moduleName = "默认";
-                }
+                String sheetName = (moduleName == null || moduleName.isEmpty()) ? "默认" : moduleName;
                 
                 // 获取该模块的所有案例
-                PageDTO<CaseOutputDTO> pageResult = caseApplicationService.getCasesByModule(moduleName, 0, 1000);
+                PageDTO<CaseOutputDTO> pageResult = caseApplicationService.getCasesByModule(moduleName, 0, 10000);
                 List<CaseOutputDTO> cases = pageResult.getContent();
                 
-                // 创建sheet（处理特殊字符）
-                String sheetName = sanitizeSheetName(moduleName);
-                Sheet sheet = workbook.createSheet(sheetName);
+                ExcelBuilder.SheetBuilder sheetBuilder = builder.sheet(sheetName)
+                        .headers(HEADERS)
+                        .columnWidths(COLUMN_WIDTHS)
+                        .data(cases, c -> new Object[]{
+                                c.getTitle(),
+                                c.getSummary(),
+                                c.getHyperlink() != null ? c.getHyperlink() : "",
+                                c.getContent() != null ? c.getContent() : ""
+                        });
                 
-                // 设置列宽
-                sheet.setColumnWidth(0, 8000);  // 标题
-                sheet.setColumnWidth(1, 12000); // 摘要
-                sheet.setColumnWidth(2, 8000);  // 超链接
-                sheet.setColumnWidth(3, 15000); // 详细内容
-                
-                // 创建表头
-                Row headerRow = sheet.createRow(0);
-                for (int i = 0; i < HEADERS.length; i++) {
-                    Cell cell = headerRow.createCell(i);
-                    cell.setCellValue(HEADERS[i]);
-                    cell.setCellStyle(headerStyle);
-                }
-                
-                // 填充数据
-                int rowNum = 1;
-                for (CaseOutputDTO caseDto : cases) {
-                    Row row = sheet.createRow(rowNum++);
-                    
-                    Cell titleCell = row.createCell(0);
-                    titleCell.setCellValue(caseDto.getTitle());
-                    titleCell.setCellStyle(contentStyle);
-                    
-                    Cell summaryCell = row.createCell(1);
-                    summaryCell.setCellValue(caseDto.getSummary());
-                    summaryCell.setCellStyle(contentStyle);
-                    
-                    Cell hyperlinkCell = row.createCell(2);
-                    hyperlinkCell.setCellValue(caseDto.getHyperlink() != null ? caseDto.getHyperlink() : "");
-                    hyperlinkCell.setCellStyle(contentStyle);
-                    
-                    Cell contentCell = row.createCell(3);
-                    contentCell.setCellValue(caseDto.getContent() != null ? caseDto.getContent() : "");
-                    contentCell.setCellStyle(contentStyle);
-                }
-                
-                log.info("导出模块 [{}] 案例 {} 条", moduleName, cases.size());
+                log.info("导出模块 [{}] 案例 {} 条", sheetName, cases.size());
             }
-            
-            // 如果没有模块，创建一个空的默认sheet
-            if (modules.isEmpty()) {
-                Sheet sheet = workbook.createSheet("默认");
-                Row headerRow = sheet.createRow(0);
-                for (int i = 0; i < HEADERS.length; i++) {
-                    Cell cell = headerRow.createCell(i);
-                    cell.setCellValue(HEADERS[i]);
-                    cell.setCellStyle(headerStyle);
-                }
-            }
-            
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            workbook.write(outputStream);
-            return outputStream.toByteArray();
         }
+        
+        return builder.build();
     }
     
     /**
@@ -216,49 +174,6 @@ public class CaseExcelService {
             }
             default -> null;
         };
-    }
-    
-    /**
-     * 清理sheet名称（移除非法字符）
-     */
-    private String sanitizeSheetName(String name) {
-        if (name == null || name.isEmpty()) return "默认";
-        // Excel sheet名称不能包含: \ / ? * [ ]
-        String sanitized = name.replaceAll("[\\\\/?*\\[\\]]", "_");
-        // 长度不能超过31
-        if (sanitized.length() > 31) {
-            sanitized = sanitized.substring(0, 31);
-        }
-        return sanitized;
-    }
-    
-    /**
-     * 创建表头样式
-     */
-    private CellStyle createHeaderStyle(Workbook workbook) {
-        CellStyle style = workbook.createCellStyle();
-        Font font = workbook.createFont();
-        font.setBold(true);
-        font.setFontHeightInPoints((short) 12);
-        style.setFont(font);
-        style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        style.setBorderBottom(BorderStyle.THIN);
-        style.setBorderTop(BorderStyle.THIN);
-        style.setBorderLeft(BorderStyle.THIN);
-        style.setBorderRight(BorderStyle.THIN);
-        style.setAlignment(HorizontalAlignment.CENTER);
-        return style;
-    }
-    
-    /**
-     * 创建内容样式
-     */
-    private CellStyle createContentStyle(Workbook workbook) {
-        CellStyle style = workbook.createCellStyle();
-        style.setWrapText(true);
-        style.setVerticalAlignment(VerticalAlignment.TOP);
-        return style;
     }
     
     /**

@@ -1,0 +1,54 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ccc;
+}
+
+/* Element Plus 覆盖样式 */
+.el-button--primary {
+  --el-button-bg-color: #667eea;
+  --el-button-border-color: #667eea;
+  --el-button-hover-bg-color: #7b8fed;
+  --el-button-hover-border-color: #7b8fed;
+  --el-button-active-bg-color: #5569d4;
+  --el-button-active-border-color: #5569d4;
+}
+
+.el-menu {
+  --el-menu-active-color: #667eea;
+}
+
+.el-checkbox {
+  --el-checkbox-checked-bg-color: #667eea;
+  --el-checkbox-checked-input-border-color: #667eea;
+}
+
+.el-switch.is-checked .el-switch__core {
+  background-color: #667eea;
+  border-color: #667eea;
+}

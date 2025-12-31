@@ -3,7 +3,7 @@
 
 spring:
   application:
-    name: log-analyzer
+    name: keke
   
   # 激活本地配置（如果application-local.yml存在）
   profiles:

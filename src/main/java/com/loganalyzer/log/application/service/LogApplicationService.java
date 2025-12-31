@@ -146,6 +146,14 @@ public class LogApplicationService {
         List<LogEntry> entries = logEntryRepository.findAll(page, size);
         return LogAssembler.toOutputDTOList(entries);
     }
+    
+    /**
+     * 统计日志总数
+     */
+    @Transactional(readOnly = true)
+    public long count() {
+        return logEntryRepository.count();
+    }
 
     /**
      * 根据级别查询日志
