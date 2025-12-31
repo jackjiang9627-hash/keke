@@ -2,9 +2,10 @@
 
 ## 1. 系统概述
 
-本系统是一个基于领域驱动设计(DDD)的学习项目，包含两个独立的限界上下文：
+本系统是一个基于领域驱动设计(DDD)的智能日志分析和工作助手平台，包含三个独立的限界上下文：
 - **日志分析（Log Context）**：日志接收、清洗、分析、存储
-- **工作助手（Assistant Context）**：案例库管理、Todo管理
+- **工作助手（Assistant Context）**：案例库管理、Todo管理、智能问答
+- **系统监控（Monitor Context）**：系统指标采集、进程监控、历史数据查询
 
 ## 2. 架构分层
 
@@ -26,7 +27,7 @@
 
 ## 3. 包结构设计
 
-按照DDD的限界上下文(Bounded Context)原则，将系统划分为三个模块：
+按照DDD的限界上下文(Bounded Context)原则，将系统划分为四个模块：
 
 ```
 com.loganalyzer/
@@ -37,8 +38,16 @@ com.loganalyzer/
 │   │   └── dto/
 │   │       └── PageDTO.java            # 分页响应DTO
 │   └── infrastructure/
-│       └── config/
-│           └── WebConfig.java          # Web配置（CORS等）
+│       ├── config/
+│       │   └── WebConfig.java          # Web配置（CORS等）
+│       ├── excel/
+│       │   └── ExcelBuilder.java       # 通用Excel导出工具
+│       └── python/                     # Python集成基础设施
+│           ├── PythonTask.java
+│           ├── PythonTaskQueue.java
+│           ├── PythonProcessManager.java
+│           ├── PythonGatewayServer.java
+│           └── PythonBridge.java
 │
 ├── log/                                 # 日志分析限界上下文
 │   ├── domain/                          # 领域层
@@ -89,53 +98,93 @@ com.loganalyzer/
 │       └── rest/
 │           └── LogController.java
 │
-└── assistant/                           # 工作助手限界上下文
+├── assistant/                           # 工作助手限界上下文
+│   ├── domain/                          # 领域层
+│   │   ├── entity/
+│   │   │   ├── CaseEntry.java          # 聚合根
+│   │   │   └── TodoItem.java           # 聚合根
+│   │   ├── valueobject/
+│   │   │   ├── CaseId.java
+│   │   │   └── TodoId.java
+│   │   ├── service/
+│   │   │   └── CaseDomainService.java
+│   │   ├── port/
+│   │   │   └── SemanticSearchPort.java # 语义搜索端口
+│   │   └── repository/
+│   │       ├── CaseRepository.java
+│   │       └── TodoRepository.java
+│   │
+│   ├── application/                     # 应用层
+│   │   ├── service/
+│   │   │   ├── CaseApplicationService.java
+│   │   │   ├── CaseExcelService.java
+│   │   │   └── TodoApplicationService.java
+│   │   └── dto/
+│   │       ├── CaseInputDTO.java
+│   │       ├── CaseOutputDTO.java
+│   │       ├── TodoInputDTO.java
+│   │       └── TodoOutputDTO.java
+│   │
+│   ├── infrastructure/                  # 基础设施层
+│   │   ├── adapter/
+│   │   │   ├── PythonSemanticSearchAdapter.java  # Python语义搜索适配器
+│   │   │   └── SimpleSemanticSearchAdapter.java  # 降级方案
+│   │   ├── config/
+│   │   │   └── DomainServiceConfig.java
+│   │   └── persistence/
+│   │       ├── entity/
+│   │       │   ├── CaseEntryPO.java
+│   │       │   └── TodoItemPO.java
+│   │       └── repository/
+│   │           ├── CaseEntryJpaRepository.java
+│   │           ├── CaseRepositoryImpl.java
+│   │           ├── TodoItemJpaRepository.java
+│   │           └── TodoRepositoryImpl.java
+│   │
+│   └── interfaces/                      # 接口层
+│       └── rest/
+│           ├── CaseController.java
+│           ├── TodoController.java
+│           ├── ChatController.java          # 智能问答接口
+│           └── GlobalExceptionHandler.java
+│
+└── monitor/                             # 系统监控限界上下文
     ├── domain/                          # 领域层
     │   ├── entity/
-    │   │   ├── CaseEntry.java          # 聚合根
-    │   │   └── TodoItem.java           # 聚合根
-    │   ├── valueobject/
-    │   │   ├── CaseId.java
-    │   │   └── TodoId.java
-    │   ├── service/
-    │   │   └── CaseDomainService.java
+    │   │   ├── MonitorSnapshot.java    # 聚合根
+    │   │   └── ProcessInfo.java        # 实体
+    │   │   valueobject/
+    │   │   ├── SnapshotId.java
+    │   │   ├── SystemInfo.java
+    │   │   ├── CpuMetrics.java
+    │   │   ├── MemoryMetrics.java
+    │   │   ├── DiskMetrics.java
+    │   │   └── NetworkMetrics.java
     │   ├── port/
-    │   │   └── SemanticSearchPort.java # 语义搜索端口
-    │   └── repository/
-    │       ├── CaseRepository.java
-    │       └── TodoRepository.java
+    │   │   └── SystemMonitorPort.java  # 系统监控端口
+    │   └── service/
+    │       └── MonitorDomainService.java
     │
     ├── application/                     # 应用层
     │   ├── service/
-    │   │   ├── CaseApplicationService.java
-    │   │   ├── CaseExcelService.java
-    │   │   └── TodoApplicationService.java
-    │   └── dto/
-    │       ├── CaseInputDTO.java
-    │       ├── CaseOutputDTO.java
-    │       ├── TodoInputDTO.java
-    │       └── TodoOutputDTO.java
+    │   │   ├── MonitorApplicationService.java
+    │   │   └── MonitorExcelService.java
+    │   ├── dto/
+    │   │   ├── MonitorSnapshotDTO.java
+    │   │   ├── SystemInfoDTO.java
+    │   │   └── ProcessInfoDTO.java
+    │   └── assembler/
+    │       └── MonitorAssembler.java
     │
     ├── infrastructure/                  # 基础设施层
     │   ├── adapter/
-    │   │   └── SimpleSemanticSearchAdapter.java
-    │   ├── config/
-    │   │   └── DomainServiceConfig.java
-    │   └── persistence/
-    │       ├── entity/
-    │       │   ├── CaseEntryPO.java
-    │       │   └── TodoItemPO.java
-    │       └── repository/
-    │           ├── CaseEntryJpaRepository.java
-    │           ├── CaseRepositoryImpl.java
-    │           ├── TodoItemJpaRepository.java
-    │           └── TodoRepositoryImpl.java
+    │   │   └── OshiSystemMonitorAdapter.java  # OSHI适配器
+    │   └── scheduler/
+    │       └── MonitorScheduler.java        # 定时采集
     │
     └── interfaces/                      # 接口层
         └── rest/
-            ├── CaseController.java
-            ├── TodoController.java
-            └── GlobalExceptionHandler.java
+            └── MonitorController.java
 ```
 
 ## 4. 限界上下文说明
@@ -177,11 +226,35 @@ com.loganalyzer/
 **端口**：
 - `SemanticSearchPort`: 语义搜索接口（由基础设施层实现）
 
-### 4.3 共享内核 (Shared Kernel)
+### 4.3 系统监控上下文 (Monitor Context)
 
-包含两个限界上下文共同使用的代码：
+**核心领域**：系统指标采集、进程监控、历史数据管理
+
+**聚合根**：`MonitorSnapshot`
+- 系统监控快照，包含某个时间点的完整系统信息
+- 聚合CPU、内存、磁盘、网络指标和进程信息
+
+**领域服务**：
+- `MonitorDomainService`: 监控数据聚合和计算
+
+**值对象**：
+- `SnapshotId`: 快照唯一标识
+- `SystemInfo`: 系统基础信息（操作系统、架构、启动时间）
+- `CpuMetrics`: CPU指标（使用率、核心数、进程数）
+- `MemoryMetrics`: 内存指标（总量、已用、可用）
+- `DiskMetrics`: 磁盘指标（总空间、已用空间）
+- `NetworkMetrics`: 网络指标（上行/下行流量）
+
+**端口**：
+- `SystemMonitorPort`: 系统监控接口（由OSHI适配器实现）
+
+### 4.4 共享内核 (Shared Kernel)
+
+包含三个限界上下文共同使用的代码：
 - `PageDTO`: 通用分页响应DTO
 - `WebConfig`: Web层公共配置
+- `ExcelBuilder`: 通用Excel导出工具类（建造者模式）
+- `PythonBridge`: Java-Python集成基础设施（Py4J封装）
 
 ## 5. 依赖关系
 
@@ -196,8 +269,8 @@ com.loganalyzer/
     └───────────────────────┘  └───────────────────────┘
 ```
 
-- `log` 和 `assistant` 是两个独立的限界上下文，彼此不直接依赖
-- 两者都可以使用 `shared` 中的公共代码
+- `log`、`assistant` 和 `monitor` 是三个独立的限界上下文，彼此不直接依赖
+- 三者都可以使用 `shared` 中的公共代码
 - 每个上下文内部遵循DDD分层架构
 
 ## 6. API端点
@@ -238,6 +311,19 @@ com.loganalyzer/
 | DELETE | /api/todos/{id} | 删除待办 |
 | GET | /api/todos/today | 获取今日待办 |
 | PATCH | /api/todos/{id}/toggle | 切换完成状态 |
+
+**智能问答**
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | /api/chat | 发送消息获取智能回复 |
+
+### 6.3 系统监控API
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| GET | /api/monitor/current | 获取当前系统信息 |
+| GET | /api/monitor/history | 获取历史监控数据（分页） |
+| GET | /api/monitor/export | 导出Excel监控报表 |
 
 ## 7. 业务规则
 

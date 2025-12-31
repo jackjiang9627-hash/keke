@@ -15,7 +15,13 @@ import java.util.stream.Collectors;
  * - 实现领域层定义的端口接口
  * - 使用基于关键词的简单语义匹配（TF-IDF变体）
  * 
- * 注：这是当Python服务不可用时的降级方案
+ * TODO: 这是当Python服务不可用时的降级方案，需要优化：
+ *  - 改进中文分词算法（当前为简单字符级分词）
+ *  - 增加更多停用词
+ *  - 实现更准确的语义相似度计算
+ *  - 考虑使用轻量级本地模型（如fastText）
+ * 
+ * 注：主要方案应使用PythonSemanticSearchAdapter
  */
 @Slf4j
 @Component
@@ -136,6 +142,11 @@ public class SimpleSemanticSearchAdapter implements SemanticSearchPort {
     
     /**
      * 分词并计算词频
+     * 
+     * TODO: 改进分词算法
+     *  - 集成专业的中文分词库（如jieba、HanLP）
+     *  - 支持词性标注和关键词提取
+     *  - 增强英文词干提取
      */
     private Map<String, Integer> tokenize(String text) {
         Map<String, Integer> wordFreq = new HashMap<>();

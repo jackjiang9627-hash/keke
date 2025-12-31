@@ -8,7 +8,14 @@ import java.util.Map;
 
 /**
  * 智能问答REST控制器
- * 暂时返回mock数据，后续接入真实AI
+ * 
+ * TODO: 接入真实AI服务
+ *  - 集成OpenAI API或其他大语言模型
+ *  - 实现上下文管理和对话历史
+ *  - 添加流式响应支持
+ *  - 实现RAG（检索增强生成）功能，结合案例库和日志分析数据
+ * 
+ * 当前实现：使用Mock数据进行关键词匹配回复
  */
 @Slf4j
 @RestController
@@ -17,12 +24,19 @@ public class ChatController {
     
     /**
      * 发送消息并获取回复
+     * 
+     * TODO: 实现真实的AI对话功能
+     *  - 添加请求参数验证
+     *  - 实现对话历史管理
+     *  - 添加异步处理和流式响应
+     *  - 集成向量数据库进行语义检索
      */
     @PostMapping
     public ResponseEntity<Map<String, Object>> chat(@RequestBody Map<String, String> request) {
         String message = request.get("message");
         log.info("收到问答请求: {}", message);
         
+        // TODO: 替换为真实AI服务调用
         // Mock回复逻辑
         String reply = generateMockReply(message);
         
@@ -35,6 +49,9 @@ public class ChatController {
     
     /**
      * 生成Mock回复
+     * 
+     * TODO: 此方法将被真实的AI服务替代
+     * 临时方案：基于关键词匹配返回预定义回复
      */
     private String generateMockReply(String message) {
         if (message == null || message.isEmpty()) {

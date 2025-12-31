@@ -198,7 +198,8 @@ onUnmounted(() => {
 
 .app-main {
   padding: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  height: 100vh;
 }
 
 .fade-enter-active,

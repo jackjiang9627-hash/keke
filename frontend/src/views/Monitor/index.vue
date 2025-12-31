@@ -530,8 +530,10 @@ onUnmounted(() => {
 <style scoped>
 .monitor-page {
   padding: 20px;
+  padding-bottom: 40px;
   background: #f5f7fa;
-  min-height: 100vh;
+  min-height: calc(100vh - 60px);
+  overflow-y: auto;
 }
 
 .page-header {

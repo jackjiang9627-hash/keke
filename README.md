@@ -33,12 +33,48 @@
 
 ## 项目简介
 
-本系统是一个用于学习DDD架构的实践项目，实现了以下核心功能：
+本系统是一个基于DDD架构的智能日志分析和工作助手平台，实现了多个限界上下文的集成：
+
+### 核心功能模块
+
+#### 1. 日志分析上下文 (Log Context)
 
 - **日志接收**：支持接收各种格式的日志数据
 - **日志清洗**：自动识别并解析标准格式、JSON格式、纯文本格式日志
 - **日志分析**：提供统计、分组、搜索等分析能力
 - **日志存储**：持久化存储清洗后的日志数据
+
+#### 2. 工作助手上下文 (Assistant Context)
+
+- **案例库**：知识案例管理，支持语义搜索、Excel导入导出
+  - 基于 Python + Sentence-Transformers 的语义向量检索
+  - 智能去重和相似度匹配
+  - 多模块分类管理
+- **待办事项**：Todo任务管理，支持优先级、完成状态跟踪
+- **智能问答**：ChatGPT风格的对话界面，右侧滑出面板
+  - 当前状态：Mock 数据，基于关键词匹配
+  - 计划功能：集成大语言模型 + RAG检索增强
+
+#### 3. 系统监控上下文 (Monitor Context)
+
+- **系统信息监控**：基于 OSHI 库实时采集系统指标
+  - CPU使用率、核心数、进程数
+  - 内存使用情况（总量、已用、可用）
+  - 磁盘空间使用率
+  - 网络流量统计（上行/下行）
+- **进程监控**：Top 5 CPU/内存占用进程
+- **历史数据查询**：支持时间范围查询和 Excel 导出
+- **定时采集**：每分钟自动采集系统指标
+
+### 技术亮点
+
+- **DDD架构**：按限界上下文划分模块，清晰的分层结构
+- **六边形架构**：端口-适配器模式，领域层与基础设施层解耦
+- **Java-Python 集成**：通过 Py4J 集成 Python 语义搜索能力
+- **智能语义搜索**：使用 sentence-transformers 实现案例语义匹配
+- **Excel 通用导出**：基于建造者模式的 ExcelBuilder 工具类
+- **系统监控**：跨平台系统信息采集（OSHI）
+- **现代化前端**：Vue 3 + Vite + Element Plus，响应式设计
 
 ---
 
@@ -178,6 +214,36 @@
 │   │   • LogSource - 日志来源                             │   │
 │   │   • Cleansing - 清洗（动作）                         │   │
 │   │   • CleansingStrategy - 清洗策略                     │   │
+│   │                                                      │   │
+│   └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │                  工作助手上下文                       │   │
+│   │               (Assistant Context)                   │   │
+│   │                                                      │   │
+│   │   统一语言 (Ubiquitous Language):                    │   │
+│   │   • CaseEntry - 案例条目（聚合根）                    │   │
+│   │   • TodoItem - 待办事项（聚合根）                    │   │
+│   │   • ModuleName - 模块名称                            │   │
+│   │   • Embedding - 语义向量                             │   │
+│   │   • SemanticSearch - 语义搜索（动作）                 │   │
+│   │   • Priority - 优先级                                 │   │
+│   │   • Similarity - 相似度                              │   │
+│   │                                                      │   │
+│   └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │                  系统监控上下文                       │   │
+│   │               (Monitor Context)                     │   │
+│   │                                                      │   │
+│   │   统一语言 (Ubiquitous Language):                    │   │
+│   │   • MonitorSnapshot - 监控快照（聚合根）             │   │
+│   │   • SystemInfo - 系统信息                             │   │
+│   │   • CpuMetrics - CPU指标                            │   │
+│   │   • MemoryMetrics - 内存指标                        │   │
+│   │   • DiskMetrics - 磁盘指标                          │   │
+│   │   • NetworkMetrics - 网络指标                      │   │
+│   │   • ProcessInfo - 进程信息                           │   │
 │   │                                                      │   │
 │   └─────────────────────────────────────────────────────┘   │
 │                                                             │
@@ -1501,11 +1567,32 @@ Application started successfully
 
 ## 技术栈
 
+### 后端技术
+
 - **框架**: Spring Boot 3.2
-- **数据库**: MySQL 8.0 (本地或Docker)
+- **语言**: Java 21
+- **数据库**: MySQL 8.0
 - **ORM**: Spring Data JPA / Hibernate
 - **JSON处理**: Jackson
 - **构建工具**: Maven
+- **系统监控**: OSHI 6.4.0
+- **Excel处理**: Apache POI 5.2.3
+- **Java-Python集成**: Py4J 0.10.9.7
+
+### 前端技术
+
+- **框架**: Vue 3
+- **构建工具**: Vite
+- **UI组件库**: Element Plus
+- **HTTP客户端**: Axios
+- **路由**: Vue Router 4
+
+### Python 集成
+
+- **Python 版本**: 3.8+
+- **语义搜索**: sentence-transformers
+- **模型**: paraphrase-multilingual-MiniLM-L12-v2
+- **Java-Python通信**: Py4J
 
 ---
 
