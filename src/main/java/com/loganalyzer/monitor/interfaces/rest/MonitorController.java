@@ -18,6 +18,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -86,48 +87,96 @@ public class MonitorController {
     }
     
     /**
-     * 启动任务
+     * 批量启动任务
+     * @param taskIds 任务ID列表
+     * @return 操作后的任务列表
      */
-    @PostMapping("/tasks/{taskId}/start")
-    public MonitorTaskDTO startTask(@PathVariable Long taskId) {
-        log.info("启动监控任务: {}", taskId);
-        return monitorApplicationService.startTask(taskId);
+    @PostMapping("/tasks/start")
+    public List<MonitorTaskDTO> startTasks(@RequestBody List<Long> taskIds) {
+        log.info("批量启动监控任务: {}", taskIds);
+        List<MonitorTaskDTO> results = new ArrayList<>();
+        for (Long taskId : taskIds) {
+            try {
+                results.add(monitorApplicationService.startTask(taskId));
+            } catch (Exception e) {
+                log.error("启动任务失败: {}", taskId, e);
+            }
+        }
+        return results;
     }
     
     /**
-     * 暂停任务
+     * 批量暂停任务
+     * @param taskIds 任务ID列表
+     * @return 操作后的任务列表
      */
-    @PostMapping("/tasks/{taskId}/pause")
-    public MonitorTaskDTO pauseTask(@PathVariable Long taskId) {
-        log.info("暂停监控任务: {}", taskId);
-        return monitorApplicationService.pauseTask(taskId);
+    @PostMapping("/tasks/pause")
+    public List<MonitorTaskDTO> pauseTasks(@RequestBody List<Long> taskIds) {
+        log.info("批量暂停监控任务: {}", taskIds);
+        List<MonitorTaskDTO> results = new ArrayList<>();
+        for (Long taskId : taskIds) {
+            try {
+                results.add(monitorApplicationService.pauseTask(taskId));
+            } catch (Exception e) {
+                log.error("暂停任务失败: {}", taskId, e);
+            }
+        }
+        return results;
     }
     
     /**
-     * 恢复任务
+     * 批量恢复任务
+     * @param taskIds 任务ID列表
+     * @return 操作后的任务列表
      */
-    @PostMapping("/tasks/{taskId}/resume")
-    public MonitorTaskDTO resumeTask(@PathVariable Long taskId) {
-        log.info("恢复监控任务: {}", taskId);
-        return monitorApplicationService.resumeTask(taskId);
+    @PostMapping("/tasks/resume")
+    public List<MonitorTaskDTO> resumeTasks(@RequestBody List<Long> taskIds) {
+        log.info("批量恢复监控任务: {}", taskIds);
+        List<MonitorTaskDTO> results = new ArrayList<>();
+        for (Long taskId : taskIds) {
+            try {
+                results.add(monitorApplicationService.resumeTask(taskId));
+            } catch (Exception e) {
+                log.error("恢复任务失败: {}", taskId, e);
+            }
+        }
+        return results;
     }
     
     /**
-     * 停止任务
+     * 批量停止任务
+     * @param taskIds 任务ID列表
+     * @return 操作后的任务列表
      */
-    @PostMapping("/tasks/{taskId}/stop")
-    public MonitorTaskDTO stopTask(@PathVariable Long taskId) {
-        log.info("停止监控任务: {}", taskId);
-        return monitorApplicationService.stopTask(taskId);
+    @PostMapping("/tasks/stop")
+    public List<MonitorTaskDTO> stopTasks(@RequestBody List<Long> taskIds) {
+        log.info("批量停止监控任务: {}", taskIds);
+        List<MonitorTaskDTO> results = new ArrayList<>();
+        for (Long taskId : taskIds) {
+            try {
+                results.add(monitorApplicationService.stopTask(taskId));
+            } catch (Exception e) {
+                log.error("停止任务失败: {}", taskId, e);
+            }
+        }
+        return results;
     }
     
     /**
-     * 删除任务
+     * 批量删除任务
+     * @param taskIds 任务ID列表
+     * @return 成功响应
      */
-    @DeleteMapping("/tasks/{taskId}")
-    public ResponseEntity<Void> deleteTask(@PathVariable Long taskId) {
-        log.info("删除监控任务: {}", taskId);
-        monitorApplicationService.deleteTask(taskId);
+    @PostMapping("/tasks/delete")
+    public ResponseEntity<Void> deleteTasks(@RequestBody List<Long> taskIds) {
+        log.info("批量删除监控任务: {}", taskIds);
+        for (Long taskId : taskIds) {
+            try {
+                monitorApplicationService.deleteTask(taskId);
+            } catch (Exception e) {
+                log.error("删除任务失败: {}", taskId, e);
+            }
+        }
         return ResponseEntity.ok().build();
     }
     
@@ -160,6 +209,52 @@ public class MonitorController {
         byte[] excelBytes = monitorExcelService.exportHistoryReport(snapshots);
         
         String filename = "监控历史报告_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
+        
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + URLEncoder.encode(filename, StandardCharsets.UTF_8))
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelBytes);
+    }
+    
+    /**
+     * 批量导出任务报告
+     * @param taskIds 任务ID列表
+     * @return Excel文件，每个Sheet对应一个任务，包含该任务的所有监控数据
+     */
+    @PostMapping("/export/tasks")
+    public ResponseEntity<byte[]> exportTasksReport(@RequestBody List<Long> taskIds) throws IOException {
+        log.info("批量导出任务报告: {}", taskIds);
+        
+        List<MonitorTaskDTO> tasks = new ArrayList<>();
+        // 每个任务对应的快照历史列表
+        List<List<MonitorSnapshotDTO>> taskSnapshotsList = new ArrayList<>();
+        
+        for (Long taskId : taskIds) {
+            try {
+                MonitorTaskDTO task = monitorApplicationService.getTask(taskId);
+                tasks.add(task);
+                
+                // 获取该任务的所有监控快照历史
+                List<MonitorSnapshotDTO> taskSnapshots = monitorApplicationService.getTaskSnapshotHistory(taskId);
+                taskSnapshotsList.add(taskSnapshots);
+            } catch (Exception e) {
+                log.warn("跳过无效的任务ID: {}", taskId, e);
+            }
+        }
+        
+        if (tasks.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        byte[] excelBytes = monitorExcelService.exportTaskReports(tasks, taskSnapshotsList);
+        
+        // 根据任务数量生成文件名
+        String filename;
+        if (tasks.size() == 1) {
+            filename = "任务报告_" + tasks.get(0).getName() + "_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
+        } else {
+            filename = "任务报告_" + tasks.size() + "个_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
+        }
         
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + URLEncoder.encode(filename, StandardCharsets.UTF_8))

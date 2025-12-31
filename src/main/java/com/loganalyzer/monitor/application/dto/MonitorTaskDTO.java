@@ -52,6 +52,9 @@ public class MonitorTaskDTO {
     /** 已执行次数 */
     private Integer executeCount;
     
+    /** 最大执行次数 - 0表示无限制 */
+    private Integer maxExecuteCount;
+    
     /** 最后一次执行结果 */
     private String lastResult;
     

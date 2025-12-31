@@ -73,7 +73,8 @@ public class MonitorApplicationService {
             if (request.getIntervalSeconds() == null || request.getIntervalSeconds() < 5) {
                 throw new IllegalArgumentException("周期任务必须指定间隔时间，且不能小于5秒");
             }
-            task = MonitorTask.createPeriodicTask(request.getName(), request.getIntervalSeconds());
+            int maxCount = request.getMaxExecuteCount() != null ? request.getMaxExecuteCount() : 0;
+            task = MonitorTask.createPeriodicTask(request.getName(), request.getIntervalSeconds(), maxCount);
         } else {
             task = MonitorTask.createOnceTask(request.getName());
         }
@@ -162,6 +163,18 @@ public class MonitorApplicationService {
         int size = Math.min(limit, snapshotHistory.size());
         return snapshotHistory.subList(snapshotHistory.size() - size, snapshotHistory.size())
                 .stream()
+                .map(monitorAssembler::toDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * 获取指定任务的快照历史
+     * @param taskId 任务ID
+     * @return 该任务的所有监控快照
+     */
+    public List<MonitorSnapshotDTO> getTaskSnapshotHistory(Long taskId) {
+        return snapshotHistory.stream()
+                .filter(s -> taskId.equals(s.getTaskId()))
                 .map(monitorAssembler::toDTO)
                 .collect(Collectors.toList());
     }

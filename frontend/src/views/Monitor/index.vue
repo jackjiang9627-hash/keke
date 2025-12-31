@@ -10,26 +10,12 @@
         </span>
       </div>
       <div class="header-actions">
-        <el-button type="primary" @click="refreshData" :loading="loading">
-          <el-icon><Refresh /></el-icon>刷新
+        <el-button type="primary" @click="detectNow" :loading="detecting">
+          <el-icon><VideoPlay /></el-icon>立即检测
         </el-button>
-        <el-button type="success" @click="detectOnce" :loading="detecting">
-          <el-icon><VideoPlay /></el-icon>单次检测
-        </el-button>
-        <el-button type="warning" @click="showTaskDialog = true">
+        <el-button type="success" @click="showTaskDialog = true">
           <el-icon><Timer /></el-icon>周期任务
         </el-button>
-        <el-dropdown @command="handleExport">
-          <el-button>
-            <el-icon><Download /></el-icon>导出报告<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="current">导出当前报告</el-dropdown-item>
-              <el-dropdown-item command="history">导出历史报告</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
       </div>
     </div>
 
@@ -277,93 +263,158 @@
     </div>
 
     <!-- 周期任务管理对话框 -->
-    <el-dialog v-model="showTaskDialog" title="监控任务管理" width="700px">
+    <el-dialog v-model="showTaskDialog" title="周期任务管理" width="1000px">
       <div class="task-dialog-content">
-        <div class="task-form">
+        <!-- 顶部操作栏 -->
+        <div class="task-operations">
           <el-form :model="newTask" inline>
             <el-form-item label="任务名称">
-              <el-input v-model="newTask.name" placeholder="输入任务名称" style="width: 150px" />
+              <el-input 
+                v-model="newTask.name" 
+                placeholder="默认: sysmonitor+时间戳" 
+                clearable
+                style="width: 180px" 
+              />
             </el-form-item>
-            <el-form-item label="类型">
-              <el-select v-model="newTask.type" style="width: 120px">
-                <el-option label="单次检测" value="ONCE" />
-                <el-option label="周期检测" value="PERIODIC" />
-              </el-select>
+            <el-form-item label="间隔(秒)">
+              <el-input-number v-model="newTask.intervalSeconds" :min="5" :max="3600" style="width: 100px" />
             </el-form-item>
-            <el-form-item label="间隔(秒)" v-if="newTask.type === 'PERIODIC'">
-              <el-input-number v-model="newTask.intervalSeconds" :min="5" :max="3600" />
+            <el-form-item label="监控次数">
+              <el-input-number v-model="newTask.maxExecuteCount" :min="0" :max="9999" style="width: 100px" placeholder="0为无限" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="createTask">创建任务</el-button>
+              <el-button type="primary" @click="createTask" :loading="creatingTask">
+                <el-icon><Plus /></el-icon>创建任务
+              </el-button>
+            </el-form-item>
+            
+            <!-- 批量操作按钮 -->
+            <el-form-item label="批量操作">
+              <el-button-group>
+                <el-button size="default" type="success" @click="batchStart" :disabled="selectedTasks.length === 0">
+                  <el-icon><VideoPlay /></el-icon>启动
+                </el-button>
+                <el-button size="default" type="warning" @click="batchPause" :disabled="selectedTasks.length === 0">
+                  <el-icon><VideoPause /></el-icon>暂停
+                </el-button>
+                <el-button size="default" type="info" @click="batchStop" :disabled="selectedTasks.length === 0">
+                  <el-icon><SwitchButton /></el-icon>停止
+                </el-button>
+                <el-button size="default" type="danger" @click="batchDelete" :disabled="selectedTasks.length === 0">
+                  <el-icon><Delete /></el-icon>删除
+                </el-button>
+                <el-button size="default" type="primary" @click="batchExport" :disabled="selectedTasks.length === 0">
+                  <el-icon><Download /></el-icon>导出
+                </el-button>
+              </el-button-group>
+            </el-form-item>
+            
+            <!-- 选中数量提示 -->
+            <el-form-item v-if="selectedTasks.length > 0">
+              <el-tag type="info" size="large">已选 {{ selectedTasks.length }} 个</el-tag>
             </el-form-item>
           </el-form>
         </div>
         
-        <el-table :data="tasks" size="small">
-          <el-table-column prop="name" label="任务名称" />
-          <el-table-column prop="typeDescription" label="类型" width="90" />
-          <el-table-column label="状态" width="90">
-            <template #default="{ row }">
-              <el-tag :type="getStatusType(row.status)" size="small">
-                {{ row.statusDescription }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="intervalSeconds" label="间隔" width="70">
-            <template #default="{ row }">
-              {{ row.type === 'PERIODIC' ? row.intervalSeconds + 's' : '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="executeCount" label="执行次数" width="80" />
-          <el-table-column prop="lastResult" label="最后结果" width="90" show-overflow-tooltip />
-          <el-table-column label="操作" width="180">
-            <template #default="{ row }">
-              <el-button-group size="small">
-                <el-button 
-                  v-if="row.status === 'PENDING' || row.status === 'PAUSED'" 
-                  type="success" 
-                  @click="startTask(row.id)"
-                >启动</el-button>
-                <el-button 
-                  v-if="row.status === 'RUNNING'" 
-                  type="warning" 
-                  @click="pauseTask(row.id)"
-                >暂停</el-button>
-                <el-button 
-                  v-if="row.status === 'RUNNING' || row.status === 'PAUSED'" 
-                  type="danger" 
-                  @click="stopTask(row.id)"
-                >停止</el-button>
-                <el-button type="danger" @click="deleteTask(row.id)">删除</el-button>
-              </el-button-group>
-            </template>
-          </el-table-column>
-        </el-table>
+        <!-- 任务表格 -->
+        <div class="task-table-container">
+          <el-table 
+            ref="taskTableRef"
+            :data="filteredTasks" 
+            size="small" 
+            stripe
+            row-key="id"
+            @selection-change="handleSelectionChange"
+            :header-cell-style="{ background: '#fafafa', color: '#303133', fontWeight: '600' }"
+          >
+            <el-table-column type="selection" width="50" />
+            <el-table-column prop="name" label="任务名称" min-width="150" show-overflow-tooltip sortable />
+            <el-table-column 
+              prop="status" 
+              label="状态" 
+              width="100"
+              sortable
+              :filters="statusFilters"
+              :filter-method="filterStatus"
+            >
+              <template #default="{ row }">
+                <el-tag :type="getStatusType(row.status)" size="small">
+                  {{ row.statusDescription }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="intervalSeconds" label="间隔(秒)" width="90" sortable />
+            <el-table-column label="执行次数" width="100" sortable>
+              <template #default="{ row }">
+                {{ row.executeCount }}{{ row.maxExecuteCount > 0 ? '/' + row.maxExecuteCount : '' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="lastResult" label="最后结果" width="100" show-overflow-tooltip />
+            <el-table-column prop="lastExecuteTime" label="最后执行" width="160" sortable>
+              <template #default="{ row }">
+                {{ formatTime(row.lastExecuteTime) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="260" fixed="right">
+              <template #default="{ row }">
+                <el-button-group size="small">
+                  <el-button 
+                    v-if="row.status === 'PENDING' || row.status === 'PAUSED'" 
+                    type="success" 
+                    @click="startTask(row.id)"
+                  >启动</el-button>
+                  <el-button 
+                    v-if="row.status === 'RUNNING'" 
+                    type="warning" 
+                    @click="pauseTask(row.id)"
+                  >暂停</el-button>
+                  <el-button 
+                    v-if="row.status === 'RUNNING' || row.status === 'PAUSED'" 
+                    type="info" 
+                    @click="stopTask(row.id)"
+                  >停止</el-button>
+                  <el-button type="primary" @click="exportSingleTask(row.id)">
+                    <el-icon><Download /></el-icon>报告
+                  </el-button>
+                  <el-button type="danger" @click="deleteTask(row.id)">删除</el-button>
+                </el-button-group>
+              </template>
+            </el-table-column>
+          </el-table>
+          
+          <el-empty v-if="tasks.length === 0" description="暂无任务" />
+        </div>
       </div>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  Refresh, VideoPlay, Timer, Download, ArrowDown,
-  Cpu, Coin, Files, Operation, Monitor, Connection
+  VideoPlay, Timer, Download, ArrowDown,
+  Cpu, Coin, Files, Operation, Monitor, Connection, Plus,
+  VideoPause, SwitchButton, Delete
 } from '@element-plus/icons-vue'
 import monitorApi from '@/api/monitor'
 
-const loading = ref(false)
 const detecting = ref(false)
 const snapshot = ref(null)
 const tasks = ref([])
 const showTaskDialog = ref(false)
-const refreshTimer = ref(null)
+const creatingTask = ref(false)
+const taskRefreshTimer = ref(null)
+const selectedTasks = ref([])
+const selectedTaskIds = ref(new Set()) // 保存选中的任务ID
+const taskTableRef = ref(null) // 表格引用
+const isRestoringSelection = ref(false) // 是否正在恢复选中状态
 
 const newTask = ref({
   name: '',
-  type: 'ONCE',
-  intervalSeconds: 30
+  type: 'PERIODIC',
+  intervalSeconds: 10,
+  maxExecuteCount: 60
 })
 
 const healthTagType = computed(() => {
@@ -373,6 +424,22 @@ const healthTagType = computed(() => {
   if (status === '严重') return 'danger'
   return 'info'
 })
+
+// 任务状态筛选器
+const statusFilters = computed(() => {
+  const uniqueStatuses = [...new Set(tasks.value.map(t => t.statusDescription).filter(Boolean))]
+  return uniqueStatuses.map(status => ({ text: status, value: status }))
+})
+
+// 筛选后的任务列表
+const filteredTasks = computed(() => {
+  return tasks.value
+})
+
+// 筛选方法
+const filterStatus = (value, row) => {
+  return row.statusDescription === value
+}
 
 const formatTime = (time) => {
   if (!time) return ''
@@ -403,18 +470,7 @@ const getStatusType = (status) => {
   return map[status] || 'info'
 }
 
-const refreshData = async () => {
-  loading.value = true
-  try {
-    snapshot.value = await monitorApi.getSnapshot()
-  } catch (e) {
-    ElMessage.error('获取监控数据失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-const detectOnce = async () => {
+const detectNow = async () => {
   detecting.value = true
   try {
     snapshot.value = await monitorApi.detect()
@@ -428,32 +484,68 @@ const detectOnce = async () => {
 
 const loadTasks = async () => {
   try {
+    // 保存当前选中的ID（刷新前）
+    const previousSelectedIds = new Set(selectedTaskIds.value)
+    
     tasks.value = await monitorApi.getTasks()
+    
+    // 刷新后恢复选中状态
+    if (taskTableRef.value && previousSelectedIds.size > 0) {
+      isRestoringSelection.value = true
+      await nextTick()
+      
+      // 恢复选中状态
+      tasks.value.forEach(task => {
+        if (previousSelectedIds.has(task.id)) {
+          taskTableRef.value.toggleRowSelection(task, true)
+        }
+      })
+      
+      // 恢复选中ID集合
+      selectedTaskIds.value = previousSelectedIds
+      // 恢复selectedTasks
+      selectedTasks.value = tasks.value.filter(t => previousSelectedIds.has(t.id))
+      
+      isRestoringSelection.value = false
+    }
   } catch (e) {
     console.error('加载任务失败', e)
   }
 }
 
+// 生成可读的时间格式任务名
+const generateTaskName = () => {
+  const now = new Date()
+  const pad = (n) => n.toString().padStart(2, '0')
+  return `监控_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+}
+
 const createTask = async () => {
-  if (!newTask.value.name) {
-    ElMessage.warning('请输入任务名称')
-    return
-  }
+  creatingTask.value = true
   try {
-    await monitorApi.createTask(newTask.value)
+    const taskData = {
+      name: newTask.value.name || generateTaskName(),
+      type: 'PERIODIC',
+      intervalSeconds: newTask.value.intervalSeconds,
+      maxExecuteCount: newTask.value.maxExecuteCount || 0
+    }
+    await monitorApi.createTask(taskData)
     ElMessage.success('任务创建成功')
-    newTask.value = { name: '', type: 'ONCE', intervalSeconds: 30 }
-    loadTasks()
+    newTask.value = { name: '', type: 'PERIODIC', intervalSeconds: 10, maxExecuteCount: 60 }
+    await loadTasks()
   } catch (e) {
     ElMessage.error('创建任务失败')
+  } finally {
+    creatingTask.value = false
   }
 }
 
+// 单个任务操作（调用批量接口）
 const startTask = async (taskId) => {
   try {
-    await monitorApi.startTask(taskId)
+    await monitorApi.startTasks([taskId])
     ElMessage.success('任务已启动')
-    loadTasks()
+    await loadTasks()
   } catch (e) {
     ElMessage.error('启动失败')
   }
@@ -461,9 +553,9 @@ const startTask = async (taskId) => {
 
 const pauseTask = async (taskId) => {
   try {
-    await monitorApi.pauseTask(taskId)
+    await monitorApi.pauseTasks([taskId])
     ElMessage.success('任务已暂停')
-    loadTasks()
+    await loadTasks()
   } catch (e) {
     ElMessage.error('暂停失败')
   }
@@ -471,9 +563,9 @@ const pauseTask = async (taskId) => {
 
 const stopTask = async (taskId) => {
   try {
-    await monitorApi.stopTask(taskId)
+    await monitorApi.stopTasks([taskId])
     ElMessage.success('任务已停止')
-    loadTasks()
+    await loadTasks()
   } catch (e) {
     ElMessage.error('停止失败')
   }
@@ -481,25 +573,122 @@ const stopTask = async (taskId) => {
 
 const deleteTask = async (taskId) => {
   try {
-    await monitorApi.deleteTask(taskId)
+    await monitorApi.deleteTasks([taskId])
     ElMessage.success('任务已删除')
-    loadTasks()
+    await loadTasks()
   } catch (e) {
     ElMessage.error('删除失败')
   }
 }
 
-const handleExport = async (command) => {
+// 选择变化处理
+const handleSelectionChange = (selection) => {
+  // 如果正在恢复选中状态，忽略此次事件
+  if (isRestoringSelection.value) {
+    return
+  }
+  selectedTasks.value = selection
+  // 同步更新选中ID集合
+  selectedTaskIds.value = new Set(selection.map(t => t.id))
+}
+
+// 批量启动
+const batchStart = async () => {
+  if (selectedTasks.value.length === 0) return
+  
   try {
-    let blob
-    let filename
-    if (command === 'current') {
-      blob = await monitorApi.exportReport()
-      filename = `系统监控报告_${new Date().toISOString().slice(0,10)}.xlsx`
-    } else {
-      blob = await monitorApi.exportHistoryReport(50)
-      filename = `监控历史报告_${new Date().toISOString().slice(0,10)}.xlsx`
+    await ElMessageBox.confirm(`确认启动 ${selectedTasks.value.length} 个任务？`, '批量启动', {
+      type: 'warning'
+    })
+    
+    const taskIds = selectedTasks.value.map(task => task.id)
+    await monitorApi.startTasks(taskIds)
+    ElMessage.success(`批量启动成功`)
+    await loadTasks()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('批量启动失败')
     }
+  }
+}
+
+// 批量暂停
+const batchPause = async () => {
+  if (selectedTasks.value.length === 0) return
+  
+  try {
+    await ElMessageBox.confirm(`确认暂停 ${selectedTasks.value.length} 个任务？`, '批量暂停', {
+      type: 'warning'
+    })
+    
+    const taskIds = selectedTasks.value.map(task => task.id)
+    await monitorApi.pauseTasks(taskIds)
+    ElMessage.success(`批量暂停成功`)
+    await loadTasks()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('批量暂停失败')
+    }
+  }
+}
+
+// 批量停止
+const batchStop = async () => {
+  if (selectedTasks.value.length === 0) return
+  
+  try {
+    await ElMessageBox.confirm(`确认停止 ${selectedTasks.value.length} 个任务？`, '批量停止', {
+      type: 'warning'
+    })
+    
+    const taskIds = selectedTasks.value.map(task => task.id)
+    await monitorApi.stopTasks(taskIds)
+    ElMessage.success(`批量停止成功`)
+    await loadTasks()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('批量停止失败')
+    }
+  }
+}
+
+// 批量删除
+const batchDelete = async () => {
+  if (selectedTasks.value.length === 0) return
+  
+  try {
+    await ElMessageBox.confirm(
+      `确认删除选中的 ${selectedTasks.value.length} 个任务？此操作不可恢复！`, 
+      '批量删除', 
+      {
+        type: 'error',
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消'
+      }
+    )
+    
+    const taskIds = selectedTasks.value.map(task => task.id)
+    await monitorApi.deleteTasks(taskIds)
+    ElMessage.success(`批量删除成功`)
+    // 清空选中状态
+    selectedTasks.value = []
+    selectedTaskIds.value.clear()
+    await loadTasks()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('批量删除失败')
+    }
+  }
+}
+
+// 批量导出报告
+const batchExport = async () => {
+  if (selectedTasks.value.length === 0) return
+  
+  try {
+    const taskIds = selectedTasks.value.map(t => t.id)
+    const blob = await monitorApi.exportTaskReports(taskIds)
+    const filename = `任务报告_${selectedTasks.value.length}个_${new Date().toISOString().slice(0,10)}.xlsx`
     
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -513,16 +702,45 @@ const handleExport = async (command) => {
   }
 }
 
-onMounted(() => {
-  refreshData()
-  loadTasks()
-  // 每30秒自动刷新
-  refreshTimer.value = setInterval(refreshData, 30000)
+// 导出单个任务报告（调用批量接口）
+const exportSingleTask = async (taskId) => {
+  try {
+    const blob = await monitorApi.exportTaskReports([taskId])
+    const task = tasks.value.find(t => t.id === taskId)
+    const filename = `任务报告_${task?.name || taskId}_${new Date().toISOString().slice(0,10)}.xlsx`
+    
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch (e) {
+    ElMessage.error('导出失败')
+  }
+}
+
+onMounted(async () => {
+  // 初始化加载数据
+  try {
+    snapshot.value = await monitorApi.getSnapshot()
+  } catch (e) {
+    console.error('获取监控快照失败', e)
+  }
+  await loadTasks()
+  
+  // 每3秒自动刷新任务状态
+  taskRefreshTimer.value = setInterval(async () => {
+    if (showTaskDialog.value) {
+      await loadTasks()
+    }
+  }, 3000)
 })
 
 onUnmounted(() => {
-  if (refreshTimer.value) {
-    clearInterval(refreshTimer.value)
+  if (taskRefreshTimer.value) {
+    clearInterval(taskRefreshTimer.value)
   }
 })
 </script>
@@ -692,10 +910,25 @@ onUnmounted(() => {
   gap: 16px;
 }
 
-.task-form {
+.task-operations {
   background: #f5f7fa;
-  padding: 12px;
+  padding: 16px;
   border-radius: 8px;
+}
+
+.task-operations :deep(.el-form) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-operations :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
+.task-table-container {
+  margin-top: 0;
 }
 
 @media (max-width: 1200px) {

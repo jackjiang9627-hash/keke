@@ -31,29 +31,29 @@ export default {
     return request.get(`/api/monitor/tasks/${taskId}`)
   },
   
-  // 启动任务
-  startTask(taskId) {
-    return request.post(`/api/monitor/tasks/${taskId}/start`)
+  // 批量启动任务
+  startTasks(taskIds) {
+    return request.post('/api/monitor/tasks/start', taskIds)
   },
   
-  // 暂停任务
-  pauseTask(taskId) {
-    return request.post(`/api/monitor/tasks/${taskId}/pause`)
+  // 批量暂停任务
+  pauseTasks(taskIds) {
+    return request.post('/api/monitor/tasks/pause', taskIds)
   },
   
-  // 恢复任务
-  resumeTask(taskId) {
-    return request.post(`/api/monitor/tasks/${taskId}/resume`)
+  // 批量恢复任务
+  resumeTasks(taskIds) {
+    return request.post('/api/monitor/tasks/resume', taskIds)
   },
   
-  // 停止任务
-  stopTask(taskId) {
-    return request.post(`/api/monitor/tasks/${taskId}/stop`)
+  // 批量停止任务
+  stopTasks(taskIds) {
+    return request.post('/api/monitor/tasks/stop', taskIds)
   },
   
-  // 删除任务
-  deleteTask(taskId) {
-    return request.delete(`/api/monitor/tasks/${taskId}`)
+  // 批量删除任务
+  deleteTasks(taskIds) {
+    return request.post('/api/monitor/tasks/delete', taskIds)
   },
   
   // 导出当前监控报告
@@ -66,6 +66,13 @@ export default {
     return request.get('/api/monitor/export/history', { 
       params: { limit },
       responseType: 'blob' 
+    })
+  },
+  
+  // 批量导出任务报告
+  exportTaskReports(taskIds) {
+    return request.post('/api/monitor/export/tasks', taskIds, {
+      responseType: 'blob'
     })
   }
 }

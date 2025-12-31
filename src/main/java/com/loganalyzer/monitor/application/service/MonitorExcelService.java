@@ -1,6 +1,7 @@
 package com.loganalyzer.monitor.application.service;
 
 import com.loganalyzer.monitor.application.dto.MonitorSnapshotDTO;
+import com.loganalyzer.monitor.application.dto.MonitorTaskDTO;
 import com.loganalyzer.shared.infrastructure.excel.ExcelBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -63,6 +64,67 @@ public class MonitorExcelService {
                             s.getOverview().getProcessCount()
                     })
                 .build();
+    }
+    
+    /**
+     * 批量导出任务报告（每个任务一个Sheet，包含所有监控数据）
+     * @param tasks 任务列表
+     * @param taskSnapshotsList 每个任务对应的快照历史列表
+     */
+    public byte[] exportTaskReports(List<MonitorTaskDTO> tasks, List<List<MonitorSnapshotDTO>> taskSnapshotsList) throws IOException {
+        ExcelBuilder builder = ExcelBuilder.create();
+        
+        // 为每个任务创建一个Sheet
+        for (int i = 0; i < tasks.size(); i++) {
+            MonitorTaskDTO task = tasks.get(i);
+            List<MonitorSnapshotDTO> snapshots = i < taskSnapshotsList.size() ? taskSnapshotsList.get(i) : List.of();
+            
+            // 使用任务ID确保Sheet名称唯一
+            String sheetName = task.getName() + "_" + task.getId();
+            // Excel Sheet名称限制：最长31个字符
+            if (sheetName.length() > 31) {
+                sheetName = sheetName.substring(0, 26) + "_" + task.getId();
+                if (sheetName.length() > 31) {
+                    sheetName = "任务_" + task.getId();
+                }
+            }
+            
+            ExcelBuilder.SheetBuilder sheet = builder.sheet(sheetName);
+            
+            // 任务基本信息
+            sheet.title("任务信息")
+                    .keyValue("任务ID", task.getId().toString())
+                    .keyValue("任务名称", task.getName())
+                    .keyValue("任务类型", task.getTypeDescription())
+                    .keyValue("任务状态", task.getStatusDescription())
+                    .keyValue("检测间隔", task.getIntervalSeconds() != null ? task.getIntervalSeconds() + "秒" : "N/A")
+                    .keyValue("创建时间", task.getCreateTime() != null ? task.getCreateTime().format(DATE_FORMAT) : "N/A")
+                    .keyValue("启动时间", task.getStartTime() != null ? task.getStartTime().format(DATE_FORMAT) : "N/A")
+                    .keyValue("执行次数", task.getExecuteCount().toString())
+                    .keyValue("最后结果", task.getLastResult() != null ? task.getLastResult() : "N/A")
+                    .emptyRow();
+            
+            // 监控数据历史表格
+            if (!snapshots.isEmpty()) {
+                sheet.section("监控数据历史 (共" + snapshots.size() + "条记录)")
+                        .emptyRow()
+                        .headers("采集时间", "健康状态", "CPU使用率(%)", "内存使用率(%)", "磁盘使用率(%)", "进程数")
+                        .columnWidths(6000, 4000, 5000, 5000, 5000, 4000)
+                        .data(snapshots, s -> new Object[]{
+                                s.getCollectTime().format(DATE_FORMAT),
+                                s.getHealthStatus(),
+                                s.getOverview() != null ? String.format("%.2f", s.getOverview().getCpuUsage()) : "N/A",
+                                s.getOverview() != null ? String.format("%.2f", s.getOverview().getMemoryUsage()) : "N/A",
+                                s.getOverview() != null ? String.format("%.2f", s.getOverview().getDiskUsage()) : "N/A",
+                                s.getOverview() != null ? s.getOverview().getProcessCount() : 0
+                        });
+            } else {
+                sheet.section("提示")
+                        .keyValue("说明", "该任务尚未执行或没有监控数据");
+            }
+        }
+        
+        return builder.build();
     }
     
     private void buildOverviewSheet(ExcelBuilder builder, MonitorSnapshotDTO snapshot) {

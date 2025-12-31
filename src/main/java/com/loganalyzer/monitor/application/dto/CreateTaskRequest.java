@@ -29,6 +29,10 @@ public class CreateTaskRequest {
     @Min(value = 5, message = "检测间隔不能小于5秒")
     private Integer intervalSeconds;
     
+    /** 最大执行次数 - 0表示无限制 */
+    @Min(value = 0, message = "执行次数不能为负数")
+    private Integer maxExecuteCount;
+    
     /** 备注 */
     private String remark;
 }

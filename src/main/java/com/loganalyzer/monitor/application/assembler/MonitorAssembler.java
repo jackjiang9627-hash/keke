@@ -156,6 +156,7 @@ public class MonitorAssembler {
                 .status(task.getStatus().name())
                 .statusDescription(task.getStatus().getDescription())
                 .intervalSeconds(task.getIntervalSeconds())
+                .maxExecuteCount(task.getMaxExecuteCount())
                 .createTime(task.getCreateTime())
                 .startTime(task.getStartTime())
                 .endTime(task.getEndTime())

@@ -144,11 +144,7 @@ public class ExcelBuilder {
         private final ExcelBuilder parent;
         private final String sheetName;
         private String title;
-        private String[] headers;
-        private int[] columnWidths;
-        private final List<Object[]> rows = new ArrayList<>();
-        private final List<KeyValuePair> keyValuePairs = new ArrayList<>();
-        private boolean useKeyValueFormat = false;
+        private final List<SheetContent> contents = new ArrayList<>();
         
         SheetBuilder(ExcelBuilder parent, String sheetName) {
             this.parent = parent;
@@ -167,7 +163,7 @@ public class ExcelBuilder {
          * 设置表头
          */
         public SheetBuilder headers(String... headers) {
-            this.headers = headers;
+            contents.add(new TableHeader(headers));
             return this;
         }
         
@@ -175,7 +171,7 @@ public class ExcelBuilder {
          * 设置列宽（单位：1/256字符宽度，如5000约等于18个字符）
          */
         public SheetBuilder columnWidths(int... widths) {
-            this.columnWidths = widths;
+            contents.add(new ColumnWidths(widths));
             return this;
         }
         
@@ -183,7 +179,7 @@ public class ExcelBuilder {
          * 添加数据行
          */
         public SheetBuilder row(Object... values) {
-            rows.add(values);
+            contents.add(new DataRow(values));
             return this;
         }
         
@@ -193,7 +189,7 @@ public class ExcelBuilder {
         public <T> SheetBuilder data(List<T> items, Function<T, Object[]> mapper) {
             if (items != null) {
                 for (T item : items) {
-                    rows.add(mapper.apply(item));
+                    contents.add(new DataRow(mapper.apply(item)));
                 }
             }
             return this;
@@ -203,8 +199,7 @@ public class ExcelBuilder {
          * 添加键值对（用于信息展示）
          */
         public SheetBuilder keyValue(String key, Object value) {
-            keyValuePairs.add(new KeyValuePair(key, value));
-            useKeyValueFormat = true;
+            contents.add(new KeyValuePair(key, value));
             return this;
         }
         
@@ -212,11 +207,7 @@ public class ExcelBuilder {
          * 添加空行
          */
         public SheetBuilder emptyRow() {
-            if (useKeyValueFormat) {
-                keyValuePairs.add(new KeyValuePair(null, null));
-            } else {
-                rows.add(new Object[0]);
-            }
+            contents.add(new EmptyRow());
             return this;
         }
         
@@ -224,8 +215,7 @@ public class ExcelBuilder {
          * 添加分组标题
          */
         public SheetBuilder section(String sectionTitle) {
-            keyValuePairs.add(new KeyValuePair(sectionTitle, null, true));
-            useKeyValueFormat = true;
+            contents.add(new SectionTitle(sectionTitle));
             return this;
         }
         
@@ -256,6 +246,7 @@ public class ExcelBuilder {
         void buildSheet() {
             Sheet sheet = parent.getWorkbook().createSheet(sheetName);
             int rowNum = 0;
+            int[] currentColumnWidths = null;
             
             // 处理标题
             if (title != null && !title.isEmpty()) {
@@ -263,66 +254,48 @@ public class ExcelBuilder {
                 Cell titleCell = titleRow.createCell(0);
                 titleCell.setCellValue(title);
                 titleCell.setCellStyle(parent.getTitleStyle());
-                int mergeEnd = headers != null ? headers.length - 1 : 3;
-                if (mergeEnd > 0) {
-                    sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, mergeEnd));
-                }
+                sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 5));
                 rowNum++; // 空行
             }
             
-            if (useKeyValueFormat) {
-                // 键值对格式
-                for (KeyValuePair kv : keyValuePairs) {
-                    if (kv.key == null && kv.value == null) {
-                        rowNum++; // 空行
-                        continue;
-                    }
+            // 设置默认列宽
+            sheet.setColumnWidth(0, 5000);
+            sheet.setColumnWidth(1, 12000);
+            
+            // 按顺序处理所有内容
+            for (SheetContent content : contents) {
+                if (content instanceof EmptyRow) {
+                    rowNum++;
+                } else if (content instanceof KeyValuePair kv) {
                     Row row = sheet.createRow(rowNum++);
-                    if (kv.isSection) {
-                        Cell cell = row.createCell(0);
-                        cell.setCellValue(kv.key);
-                        cell.setCellStyle(parent.getHeaderStyle());
-                    } else {
-                        row.createCell(0).setCellValue(kv.key);
-                        row.createCell(1).setCellValue(formatValue(kv.value));
+                    row.createCell(0).setCellValue(kv.key);
+                    row.createCell(1).setCellValue(formatValue(kv.value));
+                } else if (content instanceof SectionTitle section) {
+                    Row row = sheet.createRow(rowNum++);
+                    Cell cell = row.createCell(0);
+                    cell.setCellValue(section.title);
+                    cell.setCellStyle(parent.getHeaderStyle());
+                } else if (content instanceof ColumnWidths cw) {
+                    currentColumnWidths = cw.widths;
+                    for (int i = 0; i < cw.widths.length; i++) {
+                        sheet.setColumnWidth(i, cw.widths[i]);
                     }
-                }
-                sheet.setColumnWidth(0, 5000);
-                sheet.setColumnWidth(1, 12000);
-            } else {
-                // 表格格式
-                // 创建表头
-                if (headers != null && headers.length > 0) {
+                } else if (content instanceof TableHeader th) {
                     Row headerRow = sheet.createRow(rowNum++);
-                    for (int i = 0; i < headers.length; i++) {
+                    for (int i = 0; i < th.headers.length; i++) {
                         Cell cell = headerRow.createCell(i);
-                        cell.setCellValue(headers[i]);
+                        cell.setCellValue(th.headers[i]);
                         cell.setCellStyle(parent.getHeaderStyle());
                     }
-                }
-                
-                // 设置列宽
-                if (columnWidths != null) {
-                    for (int i = 0; i < columnWidths.length; i++) {
-                        sheet.setColumnWidth(i, columnWidths[i]);
-                    }
-                } else if (headers != null) {
-                    // 默认列宽
-                    for (int i = 0; i < headers.length; i++) {
-                        sheet.setColumnWidth(i, 5000);
-                    }
-                }
-                
-                // 填充数据
-                for (Object[] rowData : rows) {
-                    if (rowData.length == 0) {
-                        rowNum++; // 空行
+                } else if (content instanceof DataRow dr) {
+                    if (dr.values.length == 0) {
+                        rowNum++;
                         continue;
                     }
                     Row row = sheet.createRow(rowNum++);
-                    for (int i = 0; i < rowData.length; i++) {
+                    for (int i = 0; i < dr.values.length; i++) {
                         Cell cell = row.createCell(i);
-                        setCellValue(cell, rowData[i]);
+                        setCellValue(cell, dr.values[i]);
                         cell.setCellStyle(parent.getContentStyle());
                     }
                 }
@@ -353,21 +326,14 @@ public class ExcelBuilder {
             return String.valueOf(value);
         }
         
-        @Getter
-        private static class KeyValuePair {
-            private final String key;
-            private final Object value;
-            private final boolean isSection;
-            
-            KeyValuePair(String key, Object value) {
-                this(key, value, false);
-            }
-            
-            KeyValuePair(String key, Object value, boolean isSection) {
-                this.key = key;
-                this.value = value;
-                this.isSection = isSection;
-            }
-        }
+        // 内容类型接口
+        private interface SheetContent {}
+        
+        private record EmptyRow() implements SheetContent {}
+        private record KeyValuePair(String key, Object value) implements SheetContent {}
+        private record SectionTitle(String title) implements SheetContent {}
+        private record TableHeader(String[] headers) implements SheetContent {}
+        private record ColumnWidths(int[] widths) implements SheetContent {}
+        private record DataRow(Object[] values) implements SheetContent {}
     }
 }

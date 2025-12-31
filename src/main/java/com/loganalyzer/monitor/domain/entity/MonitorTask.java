@@ -46,6 +46,9 @@ public class MonitorTask {
     /** 已执行次数 */
     private Integer executeCount;
     
+    /** 最大执行次数 - 0表示无限制 */
+    private Integer maxExecuteCount;
+    
     /** 最后一次执行结果 */
     private String lastResult;
     
@@ -109,11 +112,19 @@ public class MonitorTask {
      * 创建周期检测任务
      */
     public static MonitorTask createPeriodicTask(String name, int intervalSeconds) {
+        return createPeriodicTask(name, intervalSeconds, 0);
+    }
+    
+    /**
+     * 创建周期检测任务(带最大执行次数)
+     */
+    public static MonitorTask createPeriodicTask(String name, int intervalSeconds, int maxExecuteCount) {
         return MonitorTask.builder()
                 .name(name)
                 .type(TaskType.PERIODIC)
                 .status(TaskStatus.PENDING)
                 .intervalSeconds(intervalSeconds)
+                .maxExecuteCount(maxExecuteCount)
                 .createTime(LocalDateTime.now())
                 .executeCount(0)
                 .build();
@@ -161,7 +172,13 @@ public class MonitorTask {
             this.status = TaskStatus.COMPLETED;
             this.endTime = LocalDateTime.now();
         } else {
-            this.nextExecuteTime = LocalDateTime.now().plusSeconds(intervalSeconds);
+            // 检查是否达到最大执行次数
+            if (maxExecuteCount != null && maxExecuteCount > 0 && executeCount >= maxExecuteCount) {
+                this.status = TaskStatus.COMPLETED;
+                this.endTime = LocalDateTime.now();
+            } else {
+                this.nextExecuteTime = LocalDateTime.now().plusSeconds(intervalSeconds);
+            }
         }
     }
     
