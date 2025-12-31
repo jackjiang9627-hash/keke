@@ -47,7 +47,7 @@ public class MonitorController {
      */
     @PostMapping("/detect")
     public MonitorSnapshotDTO executeOnceDetect() {
-        log.info("执行单次系统监控检测");
+        log.info("执行单次系统监控检测。");
         return monitorApplicationService.executeOnceMonitor();
     }
     
