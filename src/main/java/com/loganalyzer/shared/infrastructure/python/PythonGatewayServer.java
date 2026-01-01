@@ -1,5 +1,6 @@
 package com.loganalyzer.shared.infrastructure.python;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -20,7 +21,11 @@ import jakarta.annotation.PreDestroy;
 @Component
 public class PythonGatewayServer {
     
-    /** 网关端口 */
+    /** 网关端口
+     * -- GETTER --
+     *  获取端口
+     */
+    @Getter
     @Value("${python.gateway.port:25333}")
     private int port;
     
@@ -30,7 +35,11 @@ public class PythonGatewayServer {
     /** Py4J网关服务器 */
     private GatewayServer gatewayServer;
     
-    /** 是否已启动 */
+    /** 是否已启动
+     * -- GETTER --
+     *  检查是否已启动
+     */
+    @Getter
     private volatile boolean started = false;
     
     public PythonGatewayServer(PythonTaskQueue taskQueue) {
@@ -42,19 +51,25 @@ public class PythonGatewayServer {
      */
     @PostConstruct
     public void start() {
+        log.info("开始启动Py4J网关服务器，端口: {}", port);
         try {
             // 创建入口点对象
             PythonEntryPoint entryPoint = new PythonEntryPoint(taskQueue);
+            log.debug("创建Python入口点对象成功");
             
             // 创建并启动Py4J网关服务器
             gatewayServer = new GatewayServer(entryPoint, port);
+            log.debug("创建GatewayServer实例成功");
+            
             gatewayServer.start();
+            log.info("GatewayServer.start() 调用成功");
             
             started = true;
             log.info("Py4J网关服务器已启动，端口: {}", port);
             
         } catch (Exception e) {
-            log.error("启动Py4J网关服务器失败", e);
+            log.error("启动Py4J网关服务器失败，端口: {}", port, e);
+            throw new RuntimeException("启动Py4J网关服务器失败", e);
         }
     }
     
@@ -69,21 +84,7 @@ public class PythonGatewayServer {
         }
         started = false;
     }
-    
-    /**
-     * 检查是否已启动
-     */
-    public boolean isStarted() {
-        return started;
-    }
-    
-    /**
-     * 获取端口
-     */
-    public int getPort() {
-        return port;
-    }
-    
+
     /**
      * Python入口点
      * 

@@ -54,7 +54,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Setting, Monitor, Folder, Finished, Document } from '@element-plus/icons-vue'
+import { Setting, Monitor, Folder, Finished, Document, Connection } from '@element-plus/icons-vue'
 import ChatPanel from '@/components/ChatPanel.vue'
 
 const route = useRoute()
@@ -67,7 +67,8 @@ const moduleSettings = ref({
   cases: true,
   todo: true,
   logs: false,
-  monitor: false
+  monitor: false,
+  ssh: true
 })
 
 // 路由与模块的映射关系
@@ -75,7 +76,8 @@ const routeModuleMap = {
   '/cases': 'cases',
   '/todo': 'todo',
   '/logs': 'logs',
-  '/monitor': 'monitor'
+  '/monitor': 'monitor',
+  '/ssh': 'ssh'
 }
 
 // 加载模块配置

@@ -61,8 +61,16 @@ public class CaseApplicationService {
             input.getSummary(),
             input.getHyperlink(),
             input.getContent(),
-            input.getModuleName()
+            input.getModuleName(),
+            input.getTags(),
+            input.getSource(),
+            input.getOriginalConversation()
         );
+        
+        // 设置复习状态
+        if (input.getReviewEnabled() != null) {
+            caseEntry.setReviewEnabled(input.getReviewEnabled());
+        }
         
         // 计算语义向量
         float[] embedding = semanticSearchPort.computeEmbedding(caseEntry.getSearchableText());
@@ -85,7 +93,10 @@ public class CaseApplicationService {
             input.getSummary(),
             input.getHyperlink(),
             input.getContent(),
-            input.getModuleName()
+            input.getModuleName(),
+            input.getTags(),
+            input.getSource(),
+            input.getOriginalConversation()
         );
         
         // 计算语义向量
@@ -232,6 +243,71 @@ public class CaseApplicationService {
         return modules;
     }
     
+    // === 复习相关方法 ===
+    
+    /**
+     * 获取今日待复习的案例
+     */
+    @Transactional(readOnly = true)
+    public List<CaseOutputDTO> getTodayReviewCases() {
+        log.info("获取今日待复习案例");
+        List<CaseEntry> cases = caseRepository.findTodayReviewCases();
+        log.info("今日待复习案例数量: {}", cases.size());
+        return cases.stream()
+            .map(this::toOutputDTO)
+            .collect(Collectors.toList());
+    }
+    
+    /**
+     * 标记案例已复习
+     * @param id 案例ID
+     * @param mastered 是否已掌握
+     */
+    public CaseOutputDTO markCaseReviewed(String id, boolean mastered) {
+        log.info("标记案例已复习: id={}, mastered={}", id, mastered);
+        
+        CaseEntry caseEntry = caseRepository.findById(CaseId.of(id))
+            .orElseThrow(() -> new RuntimeException("案例不存在: " + id));
+        
+        caseEntry.markAsReviewed(mastered);
+        CaseEntry saved = caseRepository.save(caseEntry);
+        
+        log.info("案例复习状态已更新: id={}, nextReviewDate={}, masteryLevel={}", 
+            id, saved.getNextReviewDate(), saved.getMasteryLevel());
+        
+        return toOutputDTO(saved);
+    }
+    
+    /**
+     * 延后案例复习到明天
+     */
+    public CaseOutputDTO postponeCaseReview(String id) {
+        log.info("延后案例复习: id={}", id);
+        
+        CaseEntry caseEntry = caseRepository.findById(CaseId.of(id))
+            .orElseThrow(() -> new RuntimeException("案例不存在: " + id));
+        
+        caseEntry.postponeReview();
+        CaseEntry saved = caseRepository.save(caseEntry);
+        
+        return toOutputDTO(saved);
+    }
+    
+    /**
+     * 切换案例复习启用状态
+     */
+    public CaseOutputDTO toggleCaseReview(String id, boolean enabled) {
+        log.info("切换案例复习状态: id={}, enabled={}", id, enabled);
+        
+        CaseEntry caseEntry = caseRepository.findById(CaseId.of(id))
+            .orElseThrow(() -> new RuntimeException("案例不存在: " + id));
+        
+        caseEntry.setReviewEnabled(enabled);
+        CaseEntry saved = caseRepository.save(caseEntry);
+        
+        return toOutputDTO(saved);
+    }
+    
     /**
      * 转换为输出DTO
      */
@@ -247,6 +323,17 @@ public class CaseApplicationService {
             .hasHyperlink(entry.hasHyperlink())
             .createdAt(entry.getCreatedAt())
             .updatedAt(entry.getUpdatedAt())
+            // AI总结相关
+            .tags(entry.getTags())
+            .source(entry.getSource())
+            .fromAiChat(entry.isFromAiChat())
+            // 复习相关
+            .nextReviewDate(entry.getNextReviewDate())
+            .reviewCount(entry.getReviewCount())
+            .masteryLevel(entry.getMasteryLevel())
+            .lastReviewTime(entry.getLastReviewTime())
+            .reviewEnabled(entry.getReviewEnabled())
+            .needsReviewToday(entry.needsReviewToday())
             .build();
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -95,6 +96,14 @@ public class CaseRepositoryImpl implements CaseRepository {
             .map(this::toDomain);
     }
     
+    @Override
+    public List<CaseEntry> findTodayReviewCases() {
+        LocalDate today = LocalDate.now();
+        return jpaRepository.findByReviewEnabledTrueAndNextReviewDateLessThanEqual(today).stream()
+            .map(this::toDomain)
+            .collect(Collectors.toList());
+    }
+    
     private CaseEntryPO toPO(CaseEntry entry) {
         CaseEntryPO po = new CaseEntryPO();
         po.setId(entry.getId().value());
@@ -105,6 +114,18 @@ public class CaseRepositoryImpl implements CaseRepository {
         po.setModuleName(entry.getModuleName());
         po.setCreatedAt(entry.getCreatedAt());
         po.setUpdatedAt(entry.getUpdatedAt());
+        
+        // AI总结相关字段
+        po.setTags(entry.getTags());
+        po.setSource(entry.getSource());
+        po.setOriginalConversation(entry.getOriginalConversation());
+        
+        // 复习相关字段
+        po.setNextReviewDate(entry.getNextReviewDate());
+        po.setReviewCount(entry.getReviewCount());
+        po.setMasteryLevel(entry.getMasteryLevel());
+        po.setLastReviewTime(entry.getLastReviewTime());
+        po.setReviewEnabled(entry.getReviewEnabled());
         
         // 序列化嵌入向量
         if (entry.getEmbedding() != null) {
@@ -137,7 +158,15 @@ public class CaseRepositoryImpl implements CaseRepository {
             po.getModuleName(),
             po.getCreatedAt(),
             po.getUpdatedAt(),
-            embedding
+            embedding,
+            po.getTags(),
+            po.getSource(),
+            po.getOriginalConversation(),
+            po.getNextReviewDate(),
+            po.getReviewCount(),
+            po.getMasteryLevel(),
+            po.getLastReviewTime(),
+            po.getReviewEnabled()
         );
     }
 }

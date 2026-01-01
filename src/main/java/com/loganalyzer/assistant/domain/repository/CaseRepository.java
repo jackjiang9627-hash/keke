@@ -64,4 +64,9 @@ public interface CaseRepository {
      * 根据标题和模块名称查找案例（用于去重检查）
      */
     Optional<CaseEntry> findByTitleAndModuleName(String title, String moduleName);
+    
+    /**
+     * 查找今日待复习的案例
+     */
+    List<CaseEntry> findTodayReviewCases();
 }

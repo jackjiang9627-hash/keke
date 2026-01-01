@@ -64,6 +64,9 @@ public class PythonBridge {
      * @return 执行结果（JSON字符串）
      */
     public String execute(String module, String method, Object params, long timeoutSeconds) {
+        // 懒加载：首次调用时启动Python进程
+        processManager.ensureStarted();
+        
         try {
             // 序列化参数
             String paramsJson = objectMapper.writeValueAsString(params);
@@ -212,6 +215,8 @@ public class PythonBridge {
      * 检查Python服务是否可用
      */
     public boolean isAvailable() {
+        // 懒加载：首次检查时启动Python进程
+        processManager.ensureStarted();
         return processManager.isStarted() && processManager.getActiveProcessCount() > 0;
     }
     

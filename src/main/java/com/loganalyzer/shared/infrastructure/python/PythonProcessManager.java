@@ -66,23 +66,44 @@ public class PythonProcessManager {
     /** 是否已启动 */
     private volatile boolean started = false;
     
+    /** 启动锁 */
+    private final Object startLock = new Object();
+    
     public PythonProcessManager(PythonTaskQueue taskQueue) {
         this.taskQueue = taskQueue;
     }
     
     /**
-     * 启动进程管理器
+     * 确保进程管理器已启动（懒加载）
+     * 在首次需要使用时才启动Python进程
      */
-    @PostConstruct
-    public void start() {
-        log.info("启动Python进程管理器...");
-        
-        // 检查Python脚本是否存在
-        File scriptFile = new File(workDir, pythonScript);
-        if (!scriptFile.exists()) {
-            log.warn("Python脚本不存在: {}，跳过Python进程启动", scriptFile.getAbsolutePath());
+    public void ensureStarted() {
+        if (started) {
             return;
         }
+        synchronized (startLock) {
+            if (!started) {
+                start();
+            }
+        }
+    }
+    
+    /**
+     * 启动进程管理器
+     */
+    private void start() {
+        log.info("启动Python进程管理器...");
+        
+        // 检查Python脚本是否存在（尝试多个可能的路径）
+        File scriptFile = findPythonScript();
+        if (scriptFile == null) {
+            log.warn("Python脚本不存在，跳过Python进程启动。尝试的路径: {}/{}", workDir, pythonScript);
+            return;
+        }
+        
+        // 更新工作目录为脚本所在的项目根目录
+        workDir = scriptFile.getParentFile().getParent();
+        log.info("使用Python脚本: {}, 工作目录: {}", scriptFile.getAbsolutePath(), workDir);
         
         // 启动最小数量的进程
         for (int i = 0; i < minProcesses; i++) {
@@ -95,6 +116,44 @@ public class PythonProcessManager {
         
         started = true;
         log.info("Python进程管理器已启动，当前进程数: {}", activeProcessCount.get());
+    }
+    
+    /**
+     * 查找Python脚本文件（尝试多个可能的位置）
+     */
+    private File findPythonScript() {
+        // 尝试的路径列表
+        List<String> possiblePaths = new ArrayList<>();
+        possiblePaths.add(new File(workDir, pythonScript).getAbsolutePath());
+        possiblePaths.add(new File(System.getProperty("user.dir"), pythonScript).getAbsolutePath());
+        
+        // 尝试从 classpath 资源推断项目根目录
+        try {
+            var resource = getClass().getClassLoader().getResource("application.yml");
+            if (resource != null) {
+                String path = resource.getPath();
+                // file:/path/to/project/target/classes/application.yml -> /path/to/project
+                if (path.contains("/target/classes")) {
+                    String projectRoot = path.substring(0, path.indexOf("/target/classes"));
+                    if (projectRoot.startsWith("file:")) {
+                        projectRoot = projectRoot.substring(5);
+                    }
+                    possiblePaths.add(new File(projectRoot, pythonScript).getAbsolutePath());
+                }
+            }
+        } catch (Exception e) {
+            log.debug("无法从 classpath 推断项目路径", e);
+        }
+        
+        // 检查每个可能的路径
+        for (String path : possiblePaths) {
+            File file = new File(path);
+            if (file.exists()) {
+                return file;
+            }
+        }
+        
+        return null;
     }
     
     /**

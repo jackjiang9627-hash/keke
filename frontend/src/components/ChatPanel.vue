@@ -20,7 +20,33 @@
             <el-icon><ChatDotRound /></el-icon>
             智能助手
           </h3>
-          <el-icon class="close-btn" @click="closePanel"><Close /></el-icon>
+          <div class="header-actions">
+            <!-- 模型选择 -->
+            <el-dropdown trigger="click" @command="handleBackendChange">
+              <span class="model-selector">
+                <el-icon><Setting /></el-icon>
+                {{ currentBackendLabel }}
+                <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item 
+                    v-for="b in backends" 
+                    :key="b.name" 
+                    :command="b.name"
+                    :disabled="!b.available"
+                  >
+                    <span :class="{ 'is-default': b.name === selectedBackend }">
+                      {{ getBackendLabel(b.name) }}
+                      <el-tag v-if="!b.available" size="small" type="info" style="margin-left: 8px">不可用</el-tag>
+                      <el-tag v-else-if="b.default" size="small" type="success" style="margin-left: 8px">默认</el-tag>
+                    </span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            <el-icon class="close-btn" @click="closePanel"><Close /></el-icon>
+          </div>
         </div>
         
         <div class="panel-body" ref="messagesRef">
@@ -69,6 +95,27 @@
         
         <!-- 输入区域固定在底部 -->
         <div class="panel-footer">
+          <!-- 模型选择 -->
+          <div class="model-select-row">
+            <el-select
+              v-model="selectedModel"
+              placeholder="选择模型"
+              size="small"
+              class="model-dropdown"
+            >
+              <el-option
+                v-for="m in qwenModels"
+                :key="m.value"
+                :label="m.label"
+                :value="m.value"
+              >
+                <div class="model-option">
+                  <span class="model-name">{{ m.label }}</span>
+                  <span class="model-desc">{{ m.desc }}</span>
+                </div>
+              </el-option>
+            </el-select>
+          </div>
           <el-input
             v-model="inputMessage"
             placeholder="输入您的问题..."
@@ -91,8 +138,8 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
-import { ChatDotRound, Close, User, Promotion, Finished, Folder, Service } from '@element-plus/icons-vue'
+import { ref, nextTick, onMounted, computed } from 'vue'
+import { ChatDotRound, Close, User, Promotion, Finished, Folder, Service, Setting, ArrowDown } from '@element-plus/icons-vue'
 import chatApi from '@/api/chat'
 
 const visible = ref(false)
@@ -101,6 +148,68 @@ const inputRef = ref(null)
 const inputMessage = ref('')
 const loading = ref(false)
 const messages = ref([])
+
+// 模型选择相关
+const backends = ref([])
+const selectedBackend = ref('qwen')
+
+// 后端标签映射
+const backendLabels = {
+  'qwen': '千问 AI',
+  'ollama': '本地模型',
+  'mock': 'Mock 模式'
+}
+
+// 千问模型列表
+const qwenModels = [
+  { value: 'qwen-max', label: 'Qwen Max', desc: '最强效果，复杂任务' },
+  { value: 'qwen-plus', label: 'Qwen Plus', desc: '效果与成本均衡' },
+  { value: 'qwen-turbo', label: 'Qwen Turbo', desc: '快速响应，成本低' },
+  { value: 'qwen-long', label: 'Qwen Long', desc: '超长上下文' },
+  { value: 'qwen3-max', label: 'Qwen3 Max', desc: '最新旗舰模型' },
+  { value: 'qwen3-plus', label: 'Qwen3 Plus', desc: '最新均衡模型' },
+  { value: 'qwen-coder-plus', label: 'Qwen Coder', desc: '代码专用' },
+]
+
+// 当前选择的模型
+const selectedModel = ref('qwen-plus')
+
+const getBackendLabel = (name) => backendLabels[name] || name
+
+const currentBackendLabel = computed(() => {
+  return getBackendLabel(selectedBackend.value) || '选择模型'
+})
+
+// 加载可用后端
+const loadBackends = async () => {
+  try {
+    const res = await chatApi.getBackends()
+    backends.value = res.data || res || []
+    // 选择默认后端
+    const defaultBackend = backends.value.find(b => b.default && b.available)
+    if (defaultBackend) {
+      selectedBackend.value = defaultBackend.name
+    } else {
+      const availableBackend = backends.value.find(b => b.available)
+      if (availableBackend) {
+        selectedBackend.value = availableBackend.name
+      }
+    }
+  } catch (e) {
+    console.error('加载后端列表失败', e)
+    // 默认千问
+    backends.value = [
+      { name: 'qwen', available: true, default: true },
+      { name: 'ollama', available: false, default: false },
+      { name: 'mock', available: true, default: false }
+    ]
+    selectedBackend.value = 'qwen'
+  }
+}
+
+const handleBackendChange = (backend) => {
+  selectedBackend.value = backend
+}
 
 // 消息容器引用
 const messagesContainerRef = ref(null)
@@ -154,7 +263,7 @@ const sendMessage = async () => {
   loading.value = true
   
   try {
-    const response = await chatApi.send(content)
+    const response = await chatApi.send(content, selectedBackend.value, selectedModel.value)
     messages.value.push({
       role: 'assistant',
       content: response.reply || response.data?.reply || '抱歉，我暂时无法回答这个问题。',
@@ -171,6 +280,11 @@ const sendMessage = async () => {
     scrollToBottom()
   }
 }
+
+// 初始化
+onMounted(() => {
+  loadBackends()
+})
 
 const sendQuickMessage = (msg) => {
   inputMessage.value = msg
@@ -298,6 +412,39 @@ const scrollToBottom = async () => {
 
 .close-btn:hover {
   color: #333;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.model-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #f5f7fa;
+  border-radius: 16px;
+  font-size: 12px;
+  color: #606266;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.model-selector:hover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.model-selector .el-icon {
+  font-size: 14px;
+}
+
+.is-default {
+  font-weight: 600;
+  color: #667eea;
 }
 
 .panel-body {
@@ -495,6 +642,43 @@ const scrollToBottom = async () => {
 
 .panel-footer :deep(.el-input-group__append .el-button.is-disabled) {
   color: rgba(255, 255, 255, 0.5);
+}
+
+/* 模型选择下拉框 */
+.model-select-row {
+  margin-bottom: 12px;
+}
+
+.model-dropdown {
+  width: 100%;
+}
+
+.model-dropdown :deep(.el-input__wrapper) {
+  border-radius: 20px;
+  padding: 4px 12px;
+  box-shadow: 0 1px 4px rgba(102, 126, 234, 0.1);
+  border: 1px solid #e0e6f0;
+}
+
+.model-dropdown :deep(.el-input__wrapper:hover) {
+  border-color: #667eea;
+}
+
+.model-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.model-option .model-name {
+  font-weight: 500;
+  color: #303133;
+}
+
+.model-option .model-desc {
+  font-size: 12px;
+  color: #909399;
 }
 
 /* 动画 */

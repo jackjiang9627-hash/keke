@@ -18,12 +18,16 @@ import os
 import json
 import logging
 import importlib
+import importlib.util
 import traceback
 from typing import Any, Dict, Optional
 from abc import ABC, abstractmethod
 
 # 添加当前目录到Python路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# 从plugin_base导入PluginBase
+from plugin_base import PluginBase
 
 # 配置日志
 logging.basicConfig(
@@ -33,40 +37,7 @@ logging.basicConfig(
 logger = logging.getLogger('PythonGateway')
 
 
-class PluginBase(ABC):
-    """插件基类"""
-    
-    @abstractmethod
-    def get_name(self) -> str:
-        """返回插件名称"""
-        pass
-    
-    @abstractmethod
-    def get_methods(self) -> list:
-        """返回支持的方法列表"""
-        pass
-    
-    @abstractmethod
-    def execute(self, method: str, params: dict) -> Any:
-        """
-        执行方法
-        
-        Args:
-            method: 方法名
-            params: 参数字典
-            
-        Returns:
-            执行结果
-        """
-        pass
-    
-    def initialize(self):
-        """初始化插件（可选覆盖）"""
-        pass
-    
-    def shutdown(self):
-        """关闭插件（可选覆盖）"""
-        pass
+# PluginBase 类已移动到 plugin_base.py
 
 
 class PluginRegistry:
@@ -125,14 +96,20 @@ class PythonGateway:
         # 导入并注册所有插件
         plugins_dir = os.path.join(os.path.dirname(__file__), 'plugins')
         
+        self.logger.info(f"开始加载插件，目录: {plugins_dir}")
+        
         if not os.path.exists(plugins_dir):
             os.makedirs(plugins_dir)
             self.logger.info(f"创建插件目录: {plugins_dir}")
+            return
         
         # 动态加载plugins目录下的所有插件
-        for filename in os.listdir(plugins_dir):
-            if filename.endswith('_plugin.py'):
+        plugin_files = [f for f in os.listdir(plugins_dir) if f.endswith('_plugin.py')]
+        self.logger.info(f"找到插件文件: {plugin_files}")
+        
+        for filename in plugin_files:
                 module_name = filename[:-3]  # 去掉.py
+                self.logger.info(f"开始加载插件: {filename}")
                 try:
                     # 动态导入模块
                     spec = importlib.util.spec_from_file_location(
@@ -142,14 +119,22 @@ class PythonGateway:
                     module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(module)
                     
+                    self.logger.info(f"模块导入成功: {module_name}")
+                    
                     # 查找并注册插件类
+                    plugin_found = False
                     for attr_name in dir(module):
                         attr = getattr(module, attr_name)
                         if (isinstance(attr, type) and 
                             issubclass(attr, PluginBase) and 
                             attr is not PluginBase):
+                            self.logger.info(f"找到插件类: {attr_name}")
                             plugin = attr()
                             self.registry.register(plugin)
+                            plugin_found = True
+                    
+                    if not plugin_found:
+                        self.logger.warning(f"文件 {filename} 中未找到插件类")
                             
                 except Exception as e:
                     self.logger.error(f"加载插件失败: {filename}, 错误: {e}")

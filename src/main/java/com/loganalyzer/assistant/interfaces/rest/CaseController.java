@@ -147,7 +147,7 @@ public class CaseController {
     }
     
     /**
-     * 从Excel导入案例
+     * 从 Excel 导入案例
      */
     @PostMapping("/import")
     public ResponseEntity<Map<String, Object>> importFromExcel(@RequestParam("file") MultipartFile file) {
@@ -181,5 +181,53 @@ public class CaseController {
                 "message", "导入失败: " + e.getMessage()
             ));
         }
+    }
+    
+    // === 复习相关接口 ===
+    
+    /**
+     * 获取今日待复习的案例
+     */
+    @GetMapping("/today-reviews")
+    public ResponseEntity<List<CaseOutputDTO>> getTodayReviewCases() {
+        log.info("获取今日待复习案例");
+        List<CaseOutputDTO> results = caseApplicationService.getTodayReviewCases();
+        return ResponseEntity.ok(results);
+    }
+    
+    /**
+     * 标记案例已复习
+     */
+    @PostMapping("/{id}/review")
+    public ResponseEntity<CaseOutputDTO> markCaseReviewed(
+            @PathVariable String id,
+            @RequestBody Map<String, Boolean> body) {
+        boolean mastered = body.getOrDefault("mastered", false);
+        log.info("标记案例已复习: id={}, mastered={}", id, mastered);
+        CaseOutputDTO result = caseApplicationService.markCaseReviewed(id, mastered);
+        return ResponseEntity.ok(result);
+    }
+    
+    /**
+     * 延后案例复习
+     */
+    @PostMapping("/{id}/postpone")
+    public ResponseEntity<CaseOutputDTO> postponeCaseReview(@PathVariable String id) {
+        log.info("延后案例复习: id={}", id);
+        CaseOutputDTO result = caseApplicationService.postponeCaseReview(id);
+        return ResponseEntity.ok(result);
+    }
+    
+    /**
+     * 切换案例复习启用状态
+     */
+    @PostMapping("/{id}/toggle-review")
+    public ResponseEntity<CaseOutputDTO> toggleCaseReview(
+            @PathVariable String id,
+            @RequestBody Map<String, Boolean> body) {
+        boolean enabled = body.getOrDefault("enabled", true);
+        log.info("切换案例复习状态: id={}, enabled={}", id, enabled);
+        CaseOutputDTO result = caseApplicationService.toggleCaseReview(id, enabled);
+        return ResponseEntity.ok(result);
     }
 }

@@ -39,5 +39,27 @@ export default {
     return request.get('/api/cases/export', {
       responseType: 'arraybuffer'
     })
+  },
+  
+  // === 复习相关API ===
+  
+  // 获取今日待复习案例
+  getTodayReviews() {
+    return request.get('/api/cases/today-reviews')
+  },
+  
+  // 标记案例已复习
+  markReviewed(id, mastered) {
+    return request.post(`/api/cases/${id}/review`, { mastered })
+  },
+  
+  // 延后复习到明天
+  postponeReview(id) {
+    return request.post(`/api/cases/${id}/postpone`)
+  },
+  
+  // 切换复习启用状态
+  toggleReview(id, enabled) {
+    return request.post(`/api/cases/${id}/toggle-review`, { enabled })
   }
 }
