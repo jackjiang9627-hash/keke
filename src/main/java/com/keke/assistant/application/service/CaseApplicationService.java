@@ -1,9 +1,12 @@
 package com.keke.assistant.application.service;
 
+import com.keke.assistant.application.assembler.CaseAssembler;
 import com.keke.assistant.application.dto.CaseInputDTO;
 import com.keke.assistant.application.dto.CaseOutputDTO;
 import com.keke.shared.application.dto.PageDTO;
 import com.keke.assistant.domain.entity.CaseEntry;
+import com.keke.assistant.domain.exception.CaseDuplicateException;
+import com.keke.assistant.domain.exception.CaseNotFoundException;
 import com.keke.assistant.domain.port.SemanticSearchPort;
 import com.keke.assistant.domain.repository.CaseRepository;
 import com.keke.assistant.domain.service.CaseDomainService;
@@ -28,8 +31,6 @@ import java.util.stream.Collectors;
 @Transactional
 public class CaseApplicationService {
     
-    private static final int SUMMARY_MAX_LENGTH = 100;
-    
     private final CaseRepository caseRepository;
     private final SemanticSearchPort semanticSearchPort;
     private final CaseDomainService caseDomainService;
@@ -51,9 +52,7 @@ public class CaseApplicationService {
         // 使用领域服务检查去重
         if (caseDomainService.isDuplicate(input.getTitle(), input.getModuleName())) {
             log.warn("案例已存在: title={}, module={}", input.getTitle(), input.getModuleName());
-            throw new IllegalArgumentException(
-                String.format("案例已存在：模块[%s]下已有同名标题[%s]", 
-                    input.getModuleName(), input.getTitle()));
+            throw new CaseDuplicateException(input.getTitle(), input.getModuleName());
         }
         
         CaseEntry caseEntry = CaseEntry.create(
@@ -79,7 +78,7 @@ public class CaseApplicationService {
         CaseEntry saved = caseRepository.save(caseEntry);
         log.info("案例添加成功: id={}", saved.getId().value());
         
-        return toOutputDTO(saved);
+        return CaseAssembler.toOutputDTO(saved);
     }
     
     /**
@@ -106,7 +105,7 @@ public class CaseApplicationService {
         CaseEntry saved = caseRepository.save(caseEntry);
         log.info("案例添加成功: id={}", saved.getId().value());
         
-        return toOutputDTO(saved);
+        return CaseAssembler.toOutputDTO(saved);
     }
     
     /**
@@ -116,14 +115,12 @@ public class CaseApplicationService {
         log.info("更新案例: id={}", id);
         
         CaseEntry caseEntry = caseRepository.findById(CaseId.of(id))
-            .orElseThrow(() -> new RuntimeException("案例不存在: " + id));
+            .orElseThrow(() -> new CaseNotFoundException(id));
         
         // 使用领域服务检查去重（排除当前ID）
         if (caseDomainService.isDuplicateExcludingId(input.getTitle(), input.getModuleName(), id)) {
             log.warn("案例已存在: title={}, module={}", input.getTitle(), input.getModuleName());
-            throw new IllegalArgumentException(
-                String.format("案例已存在：模块[%s]下已有同名标题[%s]", 
-                    input.getModuleName(), input.getTitle()));
+            throw new CaseDuplicateException(input.getTitle(), input.getModuleName());
         }
         
         caseEntry.update(
@@ -141,7 +138,7 @@ public class CaseApplicationService {
         CaseEntry saved = caseRepository.save(caseEntry);
         log.info("案例更新成功: id={}", saved.getId().value());
         
-        return toOutputDTO(saved);
+        return CaseAssembler.toOutputDTO(saved);
     }
     
     /**
@@ -158,7 +155,7 @@ public class CaseApplicationService {
     @Transactional(readOnly = true)
     public CaseOutputDTO getCase(String id) {
         return caseRepository.findById(CaseId.of(id))
-            .map(this::toOutputDTO)
+            .map(CaseAssembler::toOutputDTO)
             .orElse(null);
     }
     
@@ -171,14 +168,10 @@ public class CaseApplicationService {
         long total;
         
         if (moduleName == null || moduleName.isEmpty()) {
-            content = caseRepository.findAll(page, size).stream()
-                .map(this::toOutputDTO)
-                .collect(Collectors.toList());
+            content = CaseAssembler.toOutputDTOList(caseRepository.findAll(page, size));
             total = caseRepository.count();
         } else {
-            content = caseRepository.findByModuleName(moduleName, page, size).stream()
-                .map(this::toOutputDTO)
-                .collect(Collectors.toList());
+            content = CaseAssembler.toOutputDTOList(caseRepository.findByModuleName(moduleName, page, size));
             total = caseRepository.countByModuleName(moduleName);
         }
         
@@ -190,9 +183,7 @@ public class CaseApplicationService {
      */
     @Transactional(readOnly = true)
     public PageDTO<CaseOutputDTO> getAllCases(int page, int size) {
-        List<CaseOutputDTO> content = caseRepository.findAll(page, size).stream()
-            .map(this::toOutputDTO)
-            .collect(Collectors.toList());
+        List<CaseOutputDTO> content = CaseAssembler.toOutputDTOList(caseRepository.findAll(page, size));
         long total = caseRepository.count();
         return PageDTO.of(content, page, size, total);
     }
@@ -224,9 +215,7 @@ public class CaseApplicationService {
         log.info("搜索结果: 精确匹配={}, 语义匹配={}, 总计={}", 
             exactMatches.size(), semanticMatches.size(), results.size());
         
-        return results.stream()
-            .map(this::toOutputDTO)
-            .collect(Collectors.toList());
+        return CaseAssembler.toOutputDTOList(results);
     }
     
     /**
@@ -253,9 +242,7 @@ public class CaseApplicationService {
         log.info("获取今日待复习案例");
         List<CaseEntry> cases = caseRepository.findTodayReviewCases();
         log.info("今日待复习案例数量: {}", cases.size());
-        return cases.stream()
-            .map(this::toOutputDTO)
-            .collect(Collectors.toList());
+        return CaseAssembler.toOutputDTOList(cases);
     }
     
     /**
@@ -267,7 +254,7 @@ public class CaseApplicationService {
         log.info("标记案例已复习: id={}, mastered={}", id, mastered);
         
         CaseEntry caseEntry = caseRepository.findById(CaseId.of(id))
-            .orElseThrow(() -> new RuntimeException("案例不存在: " + id));
+            .orElseThrow(() -> new CaseNotFoundException(id));
         
         caseEntry.markAsReviewed(mastered);
         CaseEntry saved = caseRepository.save(caseEntry);
@@ -275,7 +262,7 @@ public class CaseApplicationService {
         log.info("案例复习状态已更新: id={}, nextReviewDate={}, masteryLevel={}", 
             id, saved.getNextReviewDate(), saved.getMasteryLevel());
         
-        return toOutputDTO(saved);
+        return CaseAssembler.toOutputDTO(saved);
     }
     
     /**
@@ -285,12 +272,12 @@ public class CaseApplicationService {
         log.info("延后案例复习: id={}", id);
         
         CaseEntry caseEntry = caseRepository.findById(CaseId.of(id))
-            .orElseThrow(() -> new RuntimeException("案例不存在: " + id));
+            .orElseThrow(() -> new CaseNotFoundException(id));
         
         caseEntry.postponeReview();
         CaseEntry saved = caseRepository.save(caseEntry);
         
-        return toOutputDTO(saved);
+        return CaseAssembler.toOutputDTO(saved);
     }
     
     /**
@@ -300,40 +287,12 @@ public class CaseApplicationService {
         log.info("切换案例复习状态: id={}, enabled={}", id, enabled);
         
         CaseEntry caseEntry = caseRepository.findById(CaseId.of(id))
-            .orElseThrow(() -> new RuntimeException("案例不存在: " + id));
+            .orElseThrow(() -> new CaseNotFoundException(id));
         
         caseEntry.setReviewEnabled(enabled);
         CaseEntry saved = caseRepository.save(caseEntry);
         
-        return toOutputDTO(saved);
+        return CaseAssembler.toOutputDTO(saved);
     }
     
-    /**
-     * 转换为输出DTO
-     */
-    private CaseOutputDTO toOutputDTO(CaseEntry entry) {
-        return CaseOutputDTO.builder()
-            .id(entry.getId().value())
-            .title(entry.getTitle())
-            .summary(entry.getSummary())
-            .truncatedSummary(entry.getTruncatedSummary(SUMMARY_MAX_LENGTH))
-            .hyperlink(entry.getHyperlink())
-            .content(entry.getContent())
-            .moduleName(entry.getModuleName())
-            .hasHyperlink(entry.hasHyperlink())
-            .createdAt(entry.getCreatedAt())
-            .updatedAt(entry.getUpdatedAt())
-            // AI总结相关
-            .tags(entry.getTags())
-            .source(entry.getSource())
-            .fromAiChat(entry.isFromAiChat())
-            // 复习相关
-            .nextReviewDate(entry.getNextReviewDate())
-            .reviewCount(entry.getReviewCount())
-            .masteryLevel(entry.getMasteryLevel())
-            .lastReviewTime(entry.getLastReviewTime())
-            .reviewEnabled(entry.getReviewEnabled())
-            .needsReviewToday(entry.needsReviewToday())
-            .build();
-    }
 }

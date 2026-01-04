@@ -2,11 +2,22 @@ package com.keke.monitor.infrastructure.adapter;
 
 import com.keke.monitor.domain.entity.MonitorSnapshot;
 import com.keke.monitor.domain.port.SystemInfoCollector;
-import com.keke.monitor.domain.valueobject.*;
+import com.keke.monitor.domain.valueobject.CpuInfo;
+import com.keke.monitor.domain.valueobject.DiskInfo;
+import com.keke.monitor.domain.valueobject.MemoryInfo;
+import com.keke.monitor.domain.valueobject.NetworkInfo;
+import com.keke.monitor.domain.valueobject.ProcessInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import oshi.SystemInfo;
-import oshi.hardware.*;
+import oshi.hardware.CentralProcessor;
+import oshi.hardware.ComputerSystem;
+import oshi.hardware.GlobalMemory;
+import oshi.hardware.HWDiskStore;
+import oshi.hardware.HardwareAbstractionLayer;
+import oshi.hardware.NetworkIF;
+import oshi.hardware.Sensors;
+import oshi.hardware.VirtualMemory;
 import oshi.software.os.FileSystem;
 import oshi.software.os.OSFileStore;
 import oshi.software.os.OSProcess;
@@ -14,7 +25,11 @@ import oshi.software.os.OperatingSystem;
 import oshi.util.Util;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**

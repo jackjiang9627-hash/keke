@@ -1,14 +1,19 @@
 package com.keke.shared.application.service;
 
 import com.keke.shared.domain.entity.SystemConfig;
+import com.keke.shared.domain.port.EncryptionPort;
 import com.keke.shared.domain.repository.SystemConfigRepository;
-import com.keke.shared.infrastructure.crypto.AesEncryptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * 系统配置应用服务
@@ -19,7 +24,7 @@ import java.util.*;
 public class SystemConfigService {
     
     private final SystemConfigRepository configRepository;
-    private final AesEncryptionService encryptionService;
+    private final EncryptionPort encryptionService;
     
     // 需要加密的配置键
     private static final Set<String> SENSITIVE_KEYS = Set.of(

@@ -1,87 +1,64 @@
 package com.keke.assistant.application.service;
 
-import com.keke.assistant.domain.entity.CaseEntry;
+import com.keke.assistant.application.dto.ChatResponseDTO;
 import com.keke.assistant.domain.port.LlmPort;
-import com.keke.assistant.domain.port.SemanticSearchPort;
-import com.keke.assistant.domain.port.SemanticSearchPort.CaseWithScore;
-import com.keke.assistant.domain.repository.CaseRepository;
-import com.keke.shared.domain.repository.SystemConfigRepository;
+import com.keke.assistant.domain.service.CaseMatchingService;
+import com.keke.assistant.domain.service.CaseMatchingService.MatchResult;
+import com.keke.assistant.domain.service.ConversationHistoryManager;
+import com.keke.shared.application.service.ChatConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * 聊天应用服务
  * 
  * DDD概念：应用服务（Application Service）
- * - 编排领域服务和基础设施服务
- * - 管理对话历史
- * - 提供AI对话能力
- * - 优先语义匹配本地案例库
+ * 
+ * 职责：编排领域服务，协调各服务完成用例
+ * - 对话历史管理 -> 委派给 ConversationHistoryManager
+ * - 案例匹配逻辑 -> 委派给 CaseMatchingService
+ * - 配置读取     -> 委派给 ChatConfigService
+ * - LLM调用       -> 委派给 LlmPort
+ * 
+ * 重构说明：符合单一职责原则(SRP)，只负责编排和协调
  */
 @Slf4j
 @Service
 public class ChatApplicationService {
     
     private final LlmPort llmPort;
-    private final SemanticSearchPort semanticSearchPort;
-    private final CaseRepository caseRepository;
-    private final SystemConfigRepository systemConfigRepository;
-    
-    /** 对话历史缓存（简单实现，生产环境应使用Redis等） */
-    private final Map<String, List<Map<String, String>>> conversationHistory = new HashMap<>();
-    
-    /** 最大历史消息数 */
-    private static final int MAX_HISTORY_SIZE = 20;
-    
-    /** 配置键：语义匹配阈值 */
-    private static final String CONFIG_KEY_SEMANTIC_THRESHOLD = "chat.semantic.threshold";
-    
-    /** 默认语义匹配阈值（70%） */
-    private static final double DEFAULT_SEMANTIC_THRESHOLD = 0.70;
-    
-    /** 最多返回的匹配案例数 */
-    private static final int MAX_CASE_MATCHES = 3;
-    
-    public ChatApplicationService(LlmPort llmPort, 
-                                   SemanticSearchPort semanticSearchPort,
-                                   CaseRepository caseRepository,
-                                   SystemConfigRepository systemConfigRepository) {
-        this.llmPort = llmPort;
-        this.semanticSearchPort = semanticSearchPort;
-        this.caseRepository = caseRepository;
-        this.systemConfigRepository = systemConfigRepository;
-    }
+    private final CaseMatchingService caseMatchingService;
+    private final ConversationHistoryManager historyManager;
+    private final ChatConfigService chatConfigService;
     
     /**
-     * 获取语义匹配阈值（从系统配置读取）
+     * 构造函数注入依赖
+     * 
+     * @param llmPort LLM端口
+     * @param caseMatchingService 案例匹配服务
+     * @param historyManager 对话历史管理器
+     * @param chatConfigService 配置服务
      */
-    private double getSemanticThreshold() {
-        return systemConfigRepository.findByKey(CONFIG_KEY_SEMANTIC_THRESHOLD)
-            .map(config -> {
-                try {
-                    double value = Double.parseDouble(config.getConfigValue());
-                    // 确保阈值在合理范围内
-                    if (value < 0.0 || value > 1.0) {
-                        log.warn("语义阈值配置超出范围(0-1): {}, 使用默认值", value);
-                        return DEFAULT_SEMANTIC_THRESHOLD;
-                    }
-                    return value;
-                } catch (NumberFormatException e) {
-                    log.warn("语义阈值配置无效: {}, 使用默认值", config.getConfigValue());
-                    return DEFAULT_SEMANTIC_THRESHOLD;
-                }
-            })
-            .orElse(DEFAULT_SEMANTIC_THRESHOLD);
+    public ChatApplicationService(LlmPort llmPort, 
+                                   CaseMatchingService caseMatchingService,
+                                   ConversationHistoryManager historyManager,
+                                   ChatConfigService chatConfigService) {
+        this.llmPort = llmPort;
+        this.caseMatchingService = caseMatchingService;
+        this.historyManager = historyManager;
+        this.chatConfigService = chatConfigService;
     }
     
     /**
      * 发送消息并获取回复
      * 
-     * 匄配流程：
+     * 匹配流程：
      * 1. 先从本地案例库进行语义匹配
-     * 2. 如果找到相似度 >= 70% 的案例，返回案例内容
+     * 2. 如果找到相似度 >= 阈值 的案例，返回案例内容
      * 3. 如果没有匹配的案例，再调用大模型生成回答
      * 
      * @param sessionId 会话ID
@@ -90,129 +67,55 @@ public class ChatApplicationService {
      * @param model 模型名称（可选）
      * @return 回复信息
      */
-    public ChatResponse chat(String sessionId, String message, String backend, String model) {
+    public ChatResponseDTO chat(String sessionId, String message, String backend, String model) {
         log.info("处理聊天请求: sessionId={}, message={}", sessionId, message);
         
-        // 获取或创建会话历史
-        List<Map<String, String>> history = conversationHistory.computeIfAbsent(
-            sessionId, k -> new ArrayList<>());
-        
-        // 添加用户消息
-        Map<String, String> userMessage = new HashMap<>();
-        userMessage.put("role", "user");
-        userMessage.put("content", message);
-        history.add(userMessage);
-        
-        // 限制历史长度
-        trimHistory(history);
+        // 添加用户消息到历史
+        historyManager.addUserMessage(sessionId, message);
         
         try {
             // 1. 优先从案例库进行语义匹配
-            String reply = tryMatchCases(message);
+            double threshold = chatConfigService.getSemanticThreshold();
+            int maxMatches = chatConfigService.getMaxCaseMatches();
+            Optional<MatchResult> matchResult = caseMatchingService.matchCases(message, threshold, maxMatches);
             
-            // 2. 如果没有匹配的案例，调用大模型
-            if (reply == null) {
+            String reply;
+            String source;
+            
+            if (matchResult.isPresent()) {
+                // 案例匹配成功
+                reply = matchResult.get().getFormattedReply();
+                source = "case";
+                log.info("案例匹配成功: 匹配{}个案例, 最高相似度={}%", 
+                    matchResult.get().getMatchCount(),
+                    (int)(matchResult.get().getTopScore() * 100));
+            } else {
+                // 2. 如果没有匹配的案例，调用大模型
                 log.info("未匹配到案例，调用大模型");
-//                reply = llmPort.chat(history, backend, model);
-                reply = "none";
+                List<Map<String, String>> history = historyManager.getHistoryAsMap(sessionId);
+                reply = llmPort.chat(history, backend, model);
+                source = "llm";
             }
             
             // 添加助手回复到历史
-            Map<String, String> assistantMessage = new HashMap<>();
-            assistantMessage.put("role", "assistant");
-            assistantMessage.put("content", reply);
-            history.add(assistantMessage);
+            historyManager.addAssistantMessage(sessionId, reply);
             
-            log.info("聊天回复完成: sessionId={}", sessionId);
+            log.info("聊天回复完成: sessionId={}, source={}", sessionId, source);
             
-            return ChatResponse.success(reply);
+            return ChatResponseDTO.success(reply, source);
             
         } catch (Exception e) {
             log.error("聊天失败", e);
             // 移除失败的用户消息
-            history.remove(history.size() - 1);
-            return ChatResponse.error("AI服务暂时不可用，请稍后重试");
+            historyManager.removeLastMessage(sessionId);
+            return ChatResponseDTO.error("AI服务暂时不可用，请稍后重试");
         }
-    }
-    
-    /**
-     * 尝试从案例库匹配答案
-     * 
-     * @param query 用户问题
-     * @return 匹配到的案例回复，或null如果没有匹配
-     */
-    private String tryMatchCases(String query) {
-        try {
-            // 获取所有案例
-            List<CaseEntry> allCases = caseRepository.findAll(0, 500);
-            if (allCases.isEmpty()) {
-                log.debug("案例库为空，跳过语义匹配");
-                return null;
-            }
-            
-            // 语义搜索：使用配置的阈值，最多Top3
-            double threshold = getSemanticThreshold();
-            List<CaseWithScore> matches = semanticSearchPort.semanticSearchWithThreshold(
-                query, allCases, threshold, MAX_CASE_MATCHES);
-            
-            if (matches.isEmpty()) {
-                log.info("未找到相似度>{}%的案例", (int)(threshold * 100));
-                return null;
-            }
-            
-            // 构建回复
-            log.info("匹配到{}个相似案例", matches.size());
-            return buildCaseReply(matches);
-            
-        } catch (Exception e) {
-            log.warn("案例匹配失败，跳过: {}", e.getMessage());
-            return null;
-        }
-    }
-    
-    /**
-     * 构建案例匹配的回复
-     */
-    private String buildCaseReply(List<CaseWithScore> matches) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("📚 **找到以下相关案例：**\n\n");
-        
-        for (int i = 0; i < matches.size(); i++) {
-            CaseWithScore match = matches.get(i);
-            CaseEntry caseEntry = match.caseEntry();
-            int similarityPercent = (int) (match.score() * 100);
-            
-            sb.append(String.format("### %d. %s\n", i + 1, caseEntry.getTitle()));
-            sb.append(String.format("相似度：**%d%%** | 模块：%s\n\n", 
-                similarityPercent, caseEntry.getModuleName() != null ? caseEntry.getModuleName() : "未分类"));
-            
-            // 摘要
-            if (caseEntry.getSummary() != null && !caseEntry.getSummary().isBlank()) {
-                sb.append("**摘要：**").append(caseEntry.getSummary()).append("\n\n");
-            }
-            
-            // 详细内容
-            if (caseEntry.getContent() != null && !caseEntry.getContent().isBlank()) {
-                sb.append("**详细内容：**\n").append(caseEntry.getContent()).append("\n\n");
-            }
-            
-            // 链接
-            if (caseEntry.getHyperlink() != null && !caseEntry.getHyperlink().isBlank()) {
-                sb.append("相关链接：").append(caseEntry.getHyperlink()).append("\n\n");
-            }
-            
-            if (i < matches.size() - 1) {
-                sb.append("---\n\n");
-            }
-        }
-        
-        sb.append("\n---\n_以上内容来自本地案例库，如需更多帮助请继续提问_");
-        
-        return sb.toString();
     }
     
     /**
      * 获取可用后端列表
+     * 
+     * @return 后端列表
      */
     public List<Map<String, Object>> getBackends() {
         return llmPort.getBackends();
@@ -220,6 +123,9 @@ public class ChatApplicationService {
     
     /**
      * 获取可用模型列表
+     * 
+     * @param backend 后端名称
+     * @return 模型列表
      */
     public Map<String, List<String>> getModels(String backend) {
         return llmPort.getModels(backend);
@@ -227,6 +133,9 @@ public class ChatApplicationService {
     
     /**
      * 设置默认后端
+     * 
+     * @param backend 后端名称
+     * @return 是否成功
      */
     public boolean setDefaultBackend(String backend) {
         return llmPort.setDefaultBackend(backend);
@@ -234,21 +143,27 @@ public class ChatApplicationService {
     
     /**
      * 清空会话历史
+     * 
+     * @param sessionId 会话ID
      */
     public void clearHistory(String sessionId) {
-        conversationHistory.remove(sessionId);
-        log.info("已清空会话历史: sessionId={}", sessionId);
+        historyManager.clearHistory(sessionId);
     }
     
     /**
      * 获取会话历史
+     * 
+     * @param sessionId 会话ID
+     * @return 历史消息列表
      */
     public List<Map<String, String>> getHistory(String sessionId) {
-        return conversationHistory.getOrDefault(sessionId, new ArrayList<>());
+        return historyManager.getHistoryAsMap(sessionId);
     }
     
     /**
      * 检查LLM服务是否可用
+     * 
+     * @return 是否可用
      */
     public boolean isLlmAvailable() {
         return llmPort.isAvailable();
@@ -263,58 +178,44 @@ public class ChatApplicationService {
      * @param model 模型名称（可选）
      * @param callback 流式回调
      */
-    public void chatStream(String sessionId, String message, String backend, String model, LlmPort.StreamCallback callback) {
+    public void chatStream(String sessionId, String message, String backend, String model, 
+                          LlmPort.StreamCallback callback) {
         log.info("处理流式聊天请求: sessionId={}, message={}", sessionId, message);
         
-        // 获取或创建会话历史
-        List<Map<String, String>> history = conversationHistory.computeIfAbsent(
-            sessionId, k -> new ArrayList<>());
-        
-        // 添加用户消息
-        Map<String, String> userMessage = new HashMap<>();
-        userMessage.put("role", "user");
-        userMessage.put("content", message);
-        history.add(userMessage);
-        
-        // 限制历史长度
-        trimHistory(history);
+        // 添加用户消息到历史
+        historyManager.addUserMessage(sessionId, message);
         
         try {
             // 调用LLM流式接口
             StringBuilder fullReply = new StringBuilder();
+            List<Map<String, String>> history = historyManager.getHistoryAsMap(sessionId);
+            
             llmPort.chatStream(history, backend, model, (content, done) -> {
                 fullReply.append(content);
                 callback.onContent(content, done);
             });
             
             // 添加助手回复到历史
-            Map<String, String> assistantMessage = new HashMap<>();
-            assistantMessage.put("role", "assistant");
-            assistantMessage.put("content", fullReply.toString());
-            history.add(assistantMessage);
+            historyManager.addAssistantMessage(sessionId, fullReply.toString());
             
             log.info("流式聊天回复完成: sessionId={}", sessionId);
             
         } catch (Exception e) {
             log.error("流式聊天失败", e);
             // 移除失败的用户消息
-            history.remove(history.size() - 1);
+            historyManager.removeLastMessage(sessionId);
             callback.onContent("AI服务暂时不可用，请稍后重试", true);
         }
     }
     
-    /**
-     * 限制历史长度
-     */
-    private void trimHistory(List<Map<String, String>> history) {
-        while (history.size() > MAX_HISTORY_SIZE) {
-            history.remove(0);
-        }
-    }
+    // ==================== 兼容旧接口的内部类 ====================
     
     /**
-     * 聊天响应
+     * 聊天响应（已废弃，请使用ChatResponseDTO）
+     * 
+     * @deprecated 使用 ChatResponseDTO 替代
      */
+    @Deprecated
     public static class ChatResponse {
         private final boolean success;
         private final String reply;
@@ -350,18 +251,6 @@ public class ChatApplicationService {
         
         public long getTimestamp() {
             return timestamp;
-        }
-        
-        public Map<String, Object> toMap() {
-            Map<String, Object> map = new HashMap<>();
-            map.put("success", success);
-            if (success) {
-                map.put("reply", reply);
-            } else {
-                map.put("error", error);
-            }
-            map.put("timestamp", timestamp);
-            return map;
         }
     }
 }

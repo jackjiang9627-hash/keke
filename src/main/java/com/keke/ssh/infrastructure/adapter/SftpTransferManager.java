@@ -1,6 +1,7 @@
 package com.keke.ssh.infrastructure.adapter;
 
 import com.keke.ssh.domain.entity.Device;
+import com.keke.ssh.domain.port.FileTransferPort;
 import com.keke.ssh.domain.valueobject.TransferProgress;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.sshd.client.SshClient;
@@ -9,23 +10,31 @@ import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.springframework.stereotype.Component;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 /**
  * SFTP文件传输管理器 - 支持进度显示和断点续传
+ * 
+ * DDD概念：适配器（Adapter）
+ * - 实现领域层定义的FileTransferPort接口
+ * - 封装SFTP具体技术实现
  */
 @Slf4j
 @Component
-public class SftpTransferManager {
+public class SftpTransferManager implements FileTransferPort {
     
     private static final int BUFFER_SIZE = 32 * 1024; // 32KB buffer
     private static final int CONNECTION_TIMEOUT_SECONDS = 30;
@@ -36,8 +45,9 @@ public class SftpTransferManager {
     private final ExecutorService executor = Executors.newFixedThreadPool(10);
     
     /**
-     * 异步上传文件，支持进度追踪
+     * 异步上传文件，支持进度追踪（实现FileTransferPort接口）
      */
+    @Override
     public String startUpload(Device device, byte[] fileContent,
                               String fileName, String remotePath) {
         String transferId = UUID.randomUUID().toString();
@@ -65,8 +75,9 @@ public class SftpTransferManager {
     }
     
     /**
-     * 异步下载文件，支持进度追踪和断点续传
+     * 异步下载文件，支持进度追踪和断点续传（实现FileTransferPort接口）
      */
+    @Override
     public String startDownload(Device device, String remotePath, String localPath) {
         String transferId = UUID.randomUUID().toString();
         String fileName = Path.of(remotePath).getFileName().toString();
@@ -323,31 +334,73 @@ public class SftpTransferManager {
     }
     
     /**
-     * 获取传输进度
+     * 获取传输进度（实现FileTransferPort接口）
      */
-    public TransferProgress getProgress(String transferId) {
-        return activeTransfers.get(transferId);
+    @Override
+    public TransferInfo getProgress(String transferId) {
+        TransferProgress progress = activeTransfers.get(transferId);
+        return progress != null ? toTransferInfo(progress) : null;
     }
     
     /**
-     * 获取所有活跃的传输任务
+     * 获取所有活跃的传输任务（实现FileTransferPort接口）
      */
-    public Map<String, TransferProgress> getAllActiveTransfers() {
-        return new ConcurrentHashMap<>(activeTransfers);
+    @Override
+    public Map<String, TransferInfo> getAllActiveTransfers() {
+        return activeTransfers.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> toTransferInfo(e.getValue())
+                ));
     }
     
     /**
-     * 取消/暂停传输
+     * 取消/暂停传输（实现FileTransferPort接口）
      */
+    @Override
     public void cancelTransfer(String transferId) {
         cancelFlags.put(transferId, true);
     }
     
     /**
-     * 恢复传输（断点续传）
+     * 恢复传输（断点续传）（实现FileTransferPort接口）
      */
+    @Override
     public String resumeDownload(Device device, String remotePath, String localPath) {
         return startDownload(device, remotePath, localPath);
+    }
+    
+    /**
+     * 转换为Port接口的TransferInfo
+     */
+    private TransferInfo toTransferInfo(TransferProgress progress) {
+        return new TransferInfo(
+                progress.getTransferId(),
+                progress.getDeviceId(),
+                progress.getDeviceName(),
+                progress.getDeviceHost(),
+                progress.getFileName(),
+                progress.getTotalBytes(),
+                progress.getTransferredBytes(),
+                progress.getPercentage(),
+                progress.getStatus(),
+                progress.getErrorMessage(),
+                progress.getStartTime()
+        );
+    }
+    
+    /**
+     * 获取原始TransferProgress（内部使用）
+     */
+    public TransferProgress getRawProgress(String transferId) {
+        return activeTransfers.get(transferId);
+    }
+    
+    /**
+     * 获取所有活跃传输的原始进度（内部使用）
+     */
+    public Map<String, TransferProgress> getAllRawActiveTransfers() {
+        return new ConcurrentHashMap<>(activeTransfers);
     }
     
     /**

@@ -5,9 +5,13 @@ import com.keke.assistant.application.dto.CaseOutputDTO;
 import com.keke.shared.application.dto.PageDTO;
 import com.keke.assistant.domain.entity.CaseEntry;
 import com.keke.assistant.domain.service.CaseDomainService;
-import com.keke.shared.infrastructure.excel.ExcelBuilder;
+import com.keke.shared.application.utils.ExcelBuilder;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 

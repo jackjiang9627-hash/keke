@@ -1,5 +1,6 @@
 package com.keke.shared.infrastructure.crypto;
 
+import com.keke.shared.domain.port.EncryptionPort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -12,12 +13,13 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 /**
- * AES-GCM 加密服务
+ * AES-GCM 加密服务适配器
+ * 实现 EncryptionPort 端口接口
  * 用于加密敏感配置（如API Key）
  */
 @Slf4j
 @Component
-public class AesEncryptionService {
+public class AesEncryptionService implements EncryptionPort {
     
     private static final String ALGORITHM = "AES/GCM/NoPadding";
     private static final int GCM_TAG_LENGTH = 128;

@@ -2,6 +2,7 @@ package com.keke.log.domain.service;
 
 import com.keke.log.domain.entity.LogEntry;
 import com.keke.log.domain.valueobject.CleansingResult;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
@@ -12,7 +13,11 @@ import java.util.List;
  * - 封装跨聚合的业务逻辑
  * - 协调多个清洗策略
  * - 无状态
+ * 
+ * 注意：虽然这是领域层的服务，但为了让Spring能够管理依赖注入，
+ * 需要添加@Service注解。这是DDD在Spring生态中的实践妥协。
  */
+@Service
 public class LogCleansingService {
 
     private final List<LogCleansingStrategy> strategies;

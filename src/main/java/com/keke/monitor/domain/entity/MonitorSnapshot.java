@@ -1,6 +1,11 @@
 package com.keke.monitor.domain.entity;
 
-import com.keke.monitor.domain.valueobject.*;
+import com.keke.monitor.domain.valueobject.CpuInfo;
+import com.keke.monitor.domain.valueobject.DiskInfo;
+import com.keke.monitor.domain.valueobject.MemoryInfo;
+import com.keke.monitor.domain.valueobject.NetworkInfo;
+import com.keke.monitor.domain.valueobject.ProcessInfo;
+import com.keke.monitor.domain.valueobject.SystemInfo;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

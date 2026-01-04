@@ -3,6 +3,7 @@ package com.keke.assistant.domain.service;
 import com.keke.assistant.domain.entity.CaseEntry;
 import com.keke.assistant.domain.repository.CaseRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
@@ -12,8 +13,12 @@ import java.util.Optional;
  * DDD概念：领域服务（Domain Service）
  * - 处理跨实体的业务逻辑
  * - 案例去重检查等业务规则
+ * 
+ * 注意：虽然这是领域层的服务，但为了让Spring能够管理依赖注入，
+ * 需要添加@Service注解。这是DDD在Spring生态中的实践妥协。
  */
 @Slf4j
+@Service
 public class CaseDomainService {
     
     private final CaseRepository caseRepository;

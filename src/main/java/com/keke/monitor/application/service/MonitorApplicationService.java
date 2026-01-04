@@ -6,6 +6,8 @@ import com.keke.monitor.application.dto.MonitorSnapshotDTO;
 import com.keke.monitor.application.dto.MonitorTaskDTO;
 import com.keke.monitor.domain.entity.MonitorSnapshot;
 import com.keke.monitor.domain.entity.MonitorTask;
+import com.keke.monitor.domain.exception.InvalidMonitorTaskException;
+import com.keke.monitor.domain.exception.MonitorTaskNotFoundException;
 import com.keke.monitor.domain.service.MonitorDomainService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MonitorApplicationService {
     
+    /** 默认Top N进程数量 */
+    private static final int DEFAULT_TOP_PROCESSES = 20;
+    
+    /** 最小周期任务间隔（秒） */
+    private static final int MIN_PERIODIC_INTERVAL_SECONDS = 5;
+    
+    /** 最大快照历史记录数 */
+    private static final int MAX_SNAPSHOT_HISTORY_SIZE = 100;
+    
     private final MonitorDomainService monitorDomainService;
     private final MonitorAssembler monitorAssembler;
     
@@ -35,14 +46,13 @@ public class MonitorApplicationService {
     
     /** 快照历史(内存存储) */
     private final List<MonitorSnapshot> snapshotHistory = new ArrayList<>();
-    private static final int MAX_HISTORY_SIZE = 100;
     
     /**
      * 执行单次监控检测
      */
     public MonitorSnapshotDTO executeOnceMonitor() {
         log.info("执行单次系统监控检测");
-        MonitorSnapshot snapshot = monitorDomainService.executeMonitoring(20);
+        MonitorSnapshot snapshot = monitorDomainService.executeMonitoring(DEFAULT_TOP_PROCESSES);
         addToHistory(snapshot);
         
         // 检查是否需要告警
@@ -58,7 +68,7 @@ public class MonitorApplicationService {
      * 获取当前系统快照
      */
     public MonitorSnapshotDTO getCurrentSnapshot() {
-        MonitorSnapshot snapshot = monitorDomainService.executeMonitoring(20);
+        MonitorSnapshot snapshot = monitorDomainService.executeMonitoring(DEFAULT_TOP_PROCESSES);
         return monitorAssembler.toDTO(snapshot);
     }
     
@@ -70,8 +80,9 @@ public class MonitorApplicationService {
         
         MonitorTask task;
         if ("PERIODIC".equalsIgnoreCase(request.getType())) {
-            if (request.getIntervalSeconds() == null || request.getIntervalSeconds() < 5) {
-                throw new IllegalArgumentException("周期任务必须指定间隔时间，且不能小于5秒");
+            if (request.getIntervalSeconds() == null || request.getIntervalSeconds() < MIN_PERIODIC_INTERVAL_SECONDS) {
+                throw new InvalidMonitorTaskException(
+                    String.format("周期任务必须指定间隔时间，且不能小于%d秒", MIN_PERIODIC_INTERVAL_SECONDS));
             }
             int maxCount = request.getMaxExecuteCount() != null ? request.getMaxExecuteCount() : 0;
             task = MonitorTask.createPeriodicTask(request.getName(), request.getIntervalSeconds(), maxCount);
@@ -95,7 +106,7 @@ public class MonitorApplicationService {
         
         // 如果是单次任务，立即执行
         if (task.getType() == MonitorTask.TaskType.ONCE) {
-            MonitorSnapshot snapshot = monitorDomainService.executeTaskMonitoring(task, 20);
+            MonitorSnapshot snapshot = monitorDomainService.executeTaskMonitoring(task, DEFAULT_TOP_PROCESSES);
             addToHistory(snapshot);
         }
         
@@ -134,7 +145,7 @@ public class MonitorApplicationService {
      */
     public void deleteTask(Long taskId) {
         if (!taskStore.containsKey(taskId)) {
-            throw new IllegalArgumentException("任务不存在: " + taskId);
+            throw new MonitorTaskNotFoundException(taskId);
         }
         taskStore.remove(taskId);
         log.info("删除监控任务: {}", taskId);
@@ -194,7 +205,7 @@ public class MonitorApplicationService {
      */
     public void executePeriodicTaskMonitoring(MonitorTask task) {
         try {
-            MonitorSnapshot snapshot = monitorDomainService.executeTaskMonitoring(task, 20);
+            MonitorSnapshot snapshot = monitorDomainService.executeTaskMonitoring(task, DEFAULT_TOP_PROCESSES);
             addToHistory(snapshot);
             log.info("周期任务[{}]执行完成，执行次数: {}", task.getName(), task.getExecuteCount());
         } catch (Exception e) {
@@ -206,13 +217,13 @@ public class MonitorApplicationService {
     private MonitorTask getTaskById(Long taskId) {
         MonitorTask task = taskStore.get(taskId);
         if (task == null) {
-            throw new IllegalArgumentException("任务不存在: " + taskId);
+            throw new MonitorTaskNotFoundException(taskId);
         }
         return task;
     }
     
     private synchronized void addToHistory(MonitorSnapshot snapshot) {
-        if (snapshotHistory.size() >= MAX_HISTORY_SIZE) {
+        if (snapshotHistory.size() >= MAX_SNAPSHOT_HISTORY_SIZE) {
             snapshotHistory.remove(0);
         }
         snapshotHistory.add(snapshot);

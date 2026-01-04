@@ -1,11 +1,12 @@
 package com.keke.ssh.application.service;
 
+import com.keke.ssh.application.assembler.SshTaskAssembler;
 import com.keke.ssh.application.dto.SshTaskInputDTO;
 import com.keke.ssh.application.dto.SshTaskOutputDTO;
-import com.keke.ssh.application.dto.SshTaskResultDTO;
 import com.keke.ssh.domain.entity.Device;
 import com.keke.ssh.domain.entity.SshTask;
 import com.keke.ssh.domain.entity.SshTaskResult;
+import com.keke.ssh.domain.exception.SshTaskNotFoundException;
 import com.keke.ssh.domain.port.SshExecutor;
 import com.keke.ssh.domain.repository.DeviceRepository;
 import com.keke.ssh.domain.repository.SshTaskRepository;
@@ -82,7 +83,7 @@ public class SshTaskApplicationService {
         task = taskRepository.save(task);
         
         log.info("命令任务执行完成: {} - {}", task.getName(), task.getStatus());
-        return toOutputDTO(task, results);
+        return SshTaskAssembler.toOutputDTO(task, results);
     }
     
     /**
@@ -133,7 +134,7 @@ public class SshTaskApplicationService {
         task = taskRepository.save(task);
         
         log.info("上传任务执行完成: {} - {}", task.getName(), task.getStatus());
-        return toOutputDTO(task, results);
+        return SshTaskAssembler.toOutputDTO(task, results);
     }
     
     /**
@@ -195,7 +196,7 @@ public class SshTaskApplicationService {
         task = taskRepository.save(task);
         
         log.info("下载任务执行完成: {} - {}", task.getName(), task.getStatus());
-        return toOutputDTO(task, results);
+        return SshTaskAssembler.toOutputDTO(task, results);
     }
     
     /**
@@ -203,9 +204,9 @@ public class SshTaskApplicationService {
      */
     public SshTaskOutputDTO getTask(Long id) {
         SshTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+                .orElseThrow(() -> new SshTaskNotFoundException(id));
         List<SshTaskResult> results = taskRepository.findResultsByTaskId(id);
-        return toOutputDTO(task, results);
+        return SshTaskAssembler.toOutputDTO(task, results);
     }
     
     /**
@@ -215,7 +216,7 @@ public class SshTaskApplicationService {
         return taskRepository.findRecent(limit).stream()
                 .map(task -> {
                     List<SshTaskResult> results = taskRepository.findResultsByTaskId(task.getId());
-                    return toOutputDTO(task, results);
+                    return SshTaskAssembler.toOutputDTO(task, results);
                 })
                 .collect(Collectors.toList());
     }
@@ -227,42 +228,5 @@ public class SshTaskApplicationService {
     public void deleteTask(Long id) {
         taskRepository.deleteById(id);
         log.info("删除任务成功: {}", id);
-    }
-    
-    private SshTaskOutputDTO toOutputDTO(SshTask task, List<SshTaskResult> results) {
-        List<SshTaskResultDTO> resultDTOs = results.stream()
-                .map(this::toResultDTO)
-                .collect(Collectors.toList());
-        
-        return SshTaskOutputDTO.builder()
-                .id(task.getId())
-                .name(task.getName())
-                .type(task.getType() != null ? task.getType().name() : null)
-                .command(task.getCommand())
-                .localPath(task.getLocalPath())
-                .remotePath(task.getRemotePath())
-                .deviceCount(task.getDeviceIds() != null ? task.getDeviceIds().size() : 0)
-                .status(task.getStatus() != null ? task.getStatus().name() : null)
-                .startTime(task.getStartTime())
-                .endTime(task.getEndTime())
-                .createTime(task.getCreateTime())
-                .results(resultDTOs)
-                .build();
-    }
-    
-    private SshTaskResultDTO toResultDTO(SshTaskResult result) {
-        return SshTaskResultDTO.builder()
-                .id(result.getId())
-                .deviceId(result.getDeviceId())
-                .deviceName(result.getDeviceName())
-                .deviceHost(result.getDeviceHost())
-                .status(result.getStatus() != null ? result.getStatus().name() : null)
-                .output(result.getOutput())
-                .errorMessage(result.getErrorMessage())
-                .exitCode(result.getExitCode())
-                .startTime(result.getStartTime())
-                .endTime(result.getEndTime())
-                .durationMs(result.getDurationMs())
-                .build();
     }
 }
