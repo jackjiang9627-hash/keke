@@ -30,6 +30,12 @@ const routes = [
     meta: { title: '系统监控', icon: 'Monitor' }
   },
   {
+    path: '/ssh',
+    name: 'Ssh',
+    component: () => import('../views/Ssh/index.vue'),
+    meta: { title: 'SSH管理', icon: 'Connection' }
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('../views/Settings/index.vue'),

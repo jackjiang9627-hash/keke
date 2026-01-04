@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSH批量管理 - 界面预览</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+  <link rel="stylesheet" href="https://unpkg.com/@element-plus/icons-vue">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; }
+    
+    .page { padding: 24px; max-width: 1400px; margin: 0 auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-header h2 { font-size: 24px; color: #1a1a2e; display: flex; align-items: center; gap: 12px; }
+    .header-actions { display: flex; gap: 12px; }
+    
+    /* Tab样式 */
+    .main-tabs { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    .tab-header { display: flex; border-bottom: 1px solid #e4e7ed; padding: 0 24px; }
+    .tab-item { padding: 16px 24px; cursor: pointer; border-bottom: 2px solid transparent; color: #606266; font-weight: 500; transition: all 0.2s; }
+    .tab-item:hover { color: #667eea; }
+    .tab-item.active { color: #667eea; border-bottom-color: #667eea; }
+    .tab-content { padding: 24px; }
+    
+    /* 统计卡片 */
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: #fff; border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+    .stat-icon.green { background: linear-gradient(135deg, #67c23a, #85ce61); color: #fff; }
+    .stat-icon.orange { background: linear-gradient(135deg, #e6a23c, #f0c78a); color: #fff; }
+    .stat-icon.red { background: linear-gradient(135deg, #f56c6c, #f89898); color: #fff; }
+    .stat-icon.blue { background: linear-gradient(135deg, #409eff, #79bbff); color: #fff; }
+    .stat-info h4 { font-size: 28px; color: #1a1a2e; }
+    .stat-info p { font-size: 14px; color: #909399; margin-top: 4px; }
+    
+    /* 设备表格 */
+    .table-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .search-box { display: flex; gap: 12px; }
+    .search-box input { padding: 10px 16px; border: 1px solid #dcdfe6; border-radius: 8px; width: 280px; }
+    .search-box select { padding: 10px 16px; border: 1px solid #dcdfe6; border-radius: 8px; }
+    
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid #ebeef5; }
+    th { background: #f5f7fa; color: #606266; font-weight: 600; }
+    tr:hover { background: #f5f7fa; }
+    
+    .status-tag { padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+    .status-online { background: #f0f9eb; color: #67c23a; }
+    .status-offline { background: #fef0f0; color: #f56c6c; }
+    .status-unknown { background: #f4f4f5; color: #909399; }
+    
+    .action-btns { display: flex; gap: 8px; }
+    .action-btn { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+    .action-btn.primary { background: #667eea; color: #fff; }
+    .action-btn.success { background: #67c23a; color: #fff; }
+    .action-btn.warning { background: #e6a23c; color: #fff; }
+    .action-btn.danger { background: #f56c6c; color: #fff; }
+    .action-btn.default { background: #f0f2f5; color: #606266; }
+    .action-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+    
+    /* 按钮样式 */
+    .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+    .btn-success { background: #67c23a; color: #fff; }
+    .btn-warning { background: #e6a23c; color: #fff; }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    
+    /* 对话框 */
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal { background: #fff; border-radius: 16px; width: 600px; max-height: 80vh; overflow: hidden; }
+    .modal-header { padding: 20px 24px; border-bottom: 1px solid #ebeef5; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h3 { font-size: 18px; color: #1a1a2e; }
+    .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #909399; }
+    .modal-body { padding: 24px; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid #ebeef5; display: flex; justify-content: flex-end; gap: 12px; }
+    
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; color: #606266; font-weight: 500; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 16px; border: 1px solid #dcdfe6; border-radius: 8px; font-size: 14px; }
+    .form-group input:focus, .form-group textarea:focus { border-color: #667eea; outline: none; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    
+    /* 命令执行区 */
+    .command-panel { display: grid; grid-template-columns: 300px 1fr; gap: 24px; height: 500px; }
+    .device-selector { background: #f5f7fa; border-radius: 12px; padding: 16px; overflow-y: auto; }
+    .device-selector h4 { margin-bottom: 12px; color: #606266; }
+    .device-item { padding: 12px; background: #fff; border-radius: 8px; margin-bottom: 8px; cursor: pointer; display: flex; align-items: center; gap: 12px; border: 2px solid transparent; transition: all 0.2s; }
+    .device-item:hover { border-color: #667eea; }
+    .device-item.selected { border-color: #667eea; background: #f0f5ff; }
+    .device-item input[type="checkbox"] { width: 18px; height: 18px; }
+    .device-item .info { flex: 1; }
+    .device-item .name { font-weight: 500; color: #1a1a2e; }
+    .device-item .ip { font-size: 12px; color: #909399; }
+    
+    .command-area { display: flex; flex-direction: column; gap: 16px; }
+    .command-input { display: flex; gap: 12px; }
+    .command-input input { flex: 1; padding: 14px 18px; border: 2px solid #dcdfe6; border-radius: 10px; font-family: 'Monaco', 'Menlo', monospace; font-size: 14px; }
+    .command-input input:focus { border-color: #667eea; outline: none; }
+    
+    .result-panel { flex: 1; background: #1e1e1e; border-radius: 12px; padding: 16px; overflow-y: auto; }
+    .result-panel pre { color: #d4d4d4; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+    .result-item { margin-bottom: 16px; border-bottom: 1px solid #333; padding-bottom: 12px; }
+    .result-item .host { color: #569cd6; margin-bottom: 4px; }
+    .result-item .output { color: #ce9178; }
+    .result-item .success { color: #4ec9b0; }
+    .result-item .error { color: #f44747; }
+    
+    /* 文件传输 */
+    .file-transfer { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .transfer-panel { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #ebeef5; }
+    .transfer-panel h4 { margin-bottom: 16px; color: #1a1a2e; display: flex; align-items: center; gap: 8px; }
+    .upload-zone { border: 2px dashed #dcdfe6; border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; }
+    .upload-zone:hover { border-color: #667eea; background: #f0f5ff; }
+    .upload-zone .icon { font-size: 48px; color: #909399; margin-bottom: 12px; }
+    .upload-zone p { color: #606266; }
+    
+    .file-list { margin-top: 16px; }
+    .file-item { display: flex; align-items: center; padding: 12px; background: #f5f7fa; border-radius: 8px; margin-bottom: 8px; }
+    .file-item .icon { font-size: 24px; margin-right: 12px; }
+    .file-item .info { flex: 1; }
+    .file-item .name { font-weight: 500; }
+    .file-item .size { font-size: 12px; color: #909399; }
+    .file-item .progress { width: 100px; height: 6px; background: #e4e7ed; border-radius: 3px; overflow: hidden; }
+    .file-item .progress-bar { height: 100%; background: #67c23a; transition: width 0.3s; }
+    
+    /* 任务历史 */
+    .task-timeline { position: relative; padding-left: 30px; }
+    .task-timeline::before { content: ''; position: absolute; left: 10px; top: 0; bottom: 0; width: 2px; background: #e4e7ed; }
+    .timeline-item { position: relative; padding-bottom: 24px; }
+    .timeline-item::before { content: ''; position: absolute; left: -24px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #667eea; border: 2px solid #fff; box-shadow: 0 0 0 2px #667eea; }
+    .timeline-item.success::before { background: #67c23a; box-shadow: 0 0 0 2px #67c23a; }
+    .timeline-item.failed::before { background: #f56c6c; box-shadow: 0 0 0 2px #f56c6c; }
+    .timeline-content { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .timeline-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .timeline-title { font-weight: 600; color: #1a1a2e; }
+    .timeline-time { font-size: 12px; color: #909399; }
+    .timeline-desc { color: #606266; font-size: 14px; }
+    
+    /* 隐藏元素 */
+    .hidden { display: none !important; }
+    
+    /* 选择全部 */
+    .select-all { padding: 8px 12px; background: #e6f0ff; border-radius: 6px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <h2>
+        <span style="font-size: 28px;">🖥️</span>
+        SSH批量管理
+      </h2>
+      <div class="header-actions">
+        <button class="btn btn-primary" onclick="showModal('add-device')">
+          ➕ 添加设备
+        </button>
+      </div>
+    </div>
+    
+    <!-- 统计卡片 -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-icon green">🟢</div>
+        <div class="stat-info">
+          <h4>12</h4>
+          <p>在线设备</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red">🔴</div>
+        <div class="stat-info">
+          <h4>3</h4>
+          <p>离线设备</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue">📋</div>
+        <div class="stat-info">
+          <h4>156</h4>
+          <p>今日任务</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orange">✅</div>
+        <div class="stat-info">
+          <h4>98.5%</h4>
+          <p>成功率</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 主要内容Tab -->
+    <div class="main-tabs">
+      <div class="tab-header">
+        <div class="tab-item active" onclick="switchTab(this, 'devices')">📡 设备管理</div>
+        <div class="tab-item" onclick="switchTab(this, 'commands')">⌨️ 批量命令</div>
+        <div class="tab-item" onclick="switchTab(this, 'files')">📁 文件传输</div>
+        <div class="tab-item" onclick="switchTab(this, 'history')">📜 任务历史</div>
+      </div>
+      
+      <!-- 设备管理 -->
+      <div class="tab-content" id="tab-devices">
+        <div class="table-toolbar">
+          <div class="search-box">
+            <input type="text" placeholder="搜索设备名称、IP地址...">
+            <select>
+              <option>全部状态</option>
+              <option>在线</option>
+              <option>离线</option>
+            </select>
+            <select>
+              <option>全部分组</option>
+              <option>生产环境</option>
+              <option>测试环境</option>
+              <option>开发环境</option>
+            </select>
+          </div>
+          <div class="action-btns">
+            <button class="action-btn primary">🔍 连接测试</button>
+            <button class="action-btn success">📥 批量导入</button>
+          </div>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th><input type="checkbox"></th>
+              <th>设备名称</th>
+              <th>IP地址</th>
+              <th>端口</th>
+              <th>用户名</th>
+              <th>分组</th>
+              <th>状态</th>
+              <th>最后连接</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input type="checkbox"></td>
+              <td><strong>web-server-01</strong></td>
+              <td>192.168.1.101</td>
+              <td>22</td>
+              <td>root</td>
+              <td>生产环境</td>
+              <td><span class="status-tag status-online">● 在线</span></td>
+              <td>2分钟前</td>
+              <td>
+                <div class="action-btns">
+                  <button class="action-btn default">终端</button>
+                  <button class="action-btn default">编辑</button>
+                  <button class="action-btn danger">删除</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td><input type="checkbox"></td>
+              <td><strong>db-server-01</strong></td>
+              <td>192.168.1.102</td>
+              <td>22</td>
+              <td>admin</td>
+              <td>生产环境</td>
+              <td><span class="status-tag status-online">● 在线</span></td>
+              <td>5分钟前</td>
+              <td>
+                <div class="action-btns">
+                  <button class="action-btn default">终端</button>
+                  <button class="action-btn default">编辑</button>
+                  <button class="action-btn danger">删除</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td><input type="checkbox"></td>
+              <td><strong>cache-server-01</strong></td>
+              <td>192.168.1.103</td>
+              <td>22</td>
+              <td>root</td>
+              <td>生产环境</td>
+              <td><span class="status-tag status-offline">● 离线</span></td>
+              <td>3小时前</td>
+              <td>
+                <div class="action-btns">
+                  <button class="action-btn default">终端</button>
+                  <button class="action-btn default">编辑</button>
+                  <button class="action-btn danger">删除</button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td><input type="checkbox"></td>
+              <td><strong>test-server-01</strong></td>
+              <td>192.168.2.10</td>
+              <td>2222</td>
+              <td>developer</td>
+              <td>测试环境</td>
+              <td><span class="status-tag status-online">● 在线</span></td>
+              <td>1分钟前</td>
+              <td>
+                <div class="action-btns">
+                  <button class="action-btn default">终端</button>
+                  <button class="action-btn default">编辑</button>
+                  <button class="action-btn danger">删除</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- 批量命令 -->
+      <div class="tab-content hidden" id="tab-commands">
+        <div class="command-panel">
+          <div class="device-selector">
+            <h4>选择目标设备</h4>
+            <div class="select-all">
+              <input type="checkbox" id="select-all"> 
+              <label for="select-all">全选在线设备 (12台)</label>
+            </div>
+            <div class="device-item selected">
+              <input type="checkbox" checked>
+              <div class="info">
+                <div class="name">web-server-01</div>
+                <div class="ip">192.168.1.101</div>
+              </div>
+              <span class="status-tag status-online">在线</span>
+            </div>
+            <div class="device-item selected">
+              <input type="checkbox" checked>
+              <div class="info">
+                <div class="name">db-server-01</div>
+                <div class="ip">192.168.1.102</div>
+              </div>
+              <span class="status-tag status-online">在线</span>
+            </div>
+            <div class="device-item">
+              <input type="checkbox">
+              <div class="info">
+                <div class="name">cache-server-01</div>
+                <div class="ip">192.168.1.103</div>
+              </div>
+              <span class="status-tag status-offline">离线</span>
+            </div>
+            <div class="device-item selected">
+              <input type="checkbox" checked>
+              <div class="info">
+                <div class="name">test-server-01</div>
+                <div class="ip">192.168.2.10</div>
+              </div>
+              <span class="status-tag status-online">在线</span>
+            </div>
+          </div>
+          
+          <div class="command-area">
+            <div class="command-input">
+              <input type="text" placeholder="输入要执行的命令，如: df -h, free -m, uptime" value="df -h && free -m">
+              <button class="btn btn-primary">▶ 执行</button>
+              <button class="btn btn-success">💾 保存模板</button>
+            </div>
+            
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <span style="font-size: 13px; color: #909399;">快捷命令:</span>
+              <button class="action-btn default">查看磁盘</button>
+              <button class="action-btn default">查看内存</button>
+              <button class="action-btn default">查看进程</button>
+              <button class="action-btn default">系统信息</button>
+              <button class="action-btn default">网络状态</button>
+            </div>
+            
+            <div class="result-panel">
+              <div class="result-item">
+                <div class="host">📍 web-server-01 (192.168.1.101)</div>
+                <pre class="output">Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1       100G   45G   55G  45% /
+/dev/sdb1       500G  120G  380G  24% /data
+
+              total        used        free      shared  buff/cache   available
+Mem:          16384        8192        4096         512        4096        7680
+Swap:          4096         256        3840</pre>
+                <div class="success">✓ 执行成功 (耗时: 0.23s)</div>
+              </div>
+              <div class="result-item">
+                <div class="host">📍 db-server-01 (192.168.1.102)</div>
+                <pre class="output">Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1       200G   89G  111G  45% /
+/dev/sdb1       1.0T  456G  544G  46% /data
+
+              total        used        free      shared  buff/cache   available
+Mem:          32768       24576        2048        1024        6144        7168
+Swap:          8192        1024        7168</pre>
+                <div class="success">✓ 执行成功 (耗时: 0.31s)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 文件传输 -->
+      <div class="tab-content hidden" id="tab-files">
+        <div class="file-transfer">
+          <div class="transfer-panel">
+            <h4>📤 上传文件</h4>
+            <div class="upload-zone">
+              <div class="icon">📁</div>
+              <p>拖拽文件到此处，或点击选择文件</p>
+              <p style="font-size: 12px; color: #909399; margin-top: 8px;">支持单文件或文件夹上传</p>
+            </div>
+            
+            <div class="form-group" style="margin-top: 16px;">
+              <label>远程目标路径</label>
+              <input type="text" placeholder="/home/user/" value="/opt/apps/">
+            </div>
+            
+            <div class="form-group">
+              <label>目标设备</label>
+              <select style="width: 100%;">
+                <option>已选择 3 台设备</option>
+              </select>
+            </div>
+            
+            <div class="file-list">
+              <div class="file-item">
+                <span class="icon">📄</span>
+                <div class="info">
+                  <div class="name">deploy-v2.3.tar.gz</div>
+                  <div class="size">45.2 MB</div>
+                </div>
+                <div class="progress">
+                  <div class="progress-bar" style="width: 75%;"></div>
+                </div>
+                <span style="margin-left: 12px; color: #67c23a;">75%</span>
+              </div>
+              <div class="file-item">
+                <span class="icon">📄</span>
+                <div class="info">
+                  <div class="name">config.yml</div>
+                  <div class="size">2.1 KB</div>
+                </div>
+                <div class="progress">
+                  <div class="progress-bar" style="width: 100%;"></div>
+                </div>
+                <span style="margin-left: 12px; color: #67c23a;">✓</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="transfer-panel">
+            <h4>📥 下载文件</h4>
+            <div class="form-group">
+              <label>远程文件路径</label>
+              <input type="text" placeholder="/var/log/app.log" value="/var/log/nginx/access.log">
+            </div>
+            
+            <div class="form-group">
+              <label>来源设备</label>
+              <select style="width: 100%;">
+                <option>web-server-01 (192.168.1.101)</option>
+                <option>db-server-01 (192.168.1.102)</option>
+              </select>
+            </div>
+            
+            <button class="btn btn-primary" style="width: 100%;">📥 下载文件</button>
+            
+            <div class="file-list" style="margin-top: 24px;">
+              <h5 style="margin-bottom: 12px; color: #606266;">最近下载</h5>
+              <div class="file-item">
+                <span class="icon">📄</span>
+                <div class="info">
+                  <div class="name">access.log</div>
+                  <div class="size">12.5 MB · web-server-01</div>
+                </div>
+                <button class="action-btn default">打开</button>
+              </div>
+              <div class="file-item">
+                <span class="icon">📄</span>
+                <div class="info">
+                  <div class="name">error.log</div>
+                  <div class="size">3.2 MB · db-server-01</div>
+                </div>
+                <button class="action-btn default">打开</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 任务历史 -->
+      <div class="tab-content hidden" id="tab-history">
+        <div class="table-toolbar">
+          <div class="search-box">
+            <input type="text" placeholder="搜索任务内容...">
+            <select>
+              <option>全部类型</option>
+              <option>命令执行</option>
+              <option>文件上传</option>
+              <option>文件下载</option>
+            </select>
+            <select>
+              <option>全部状态</option>
+              <option>成功</option>
+              <option>失败</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="task-timeline">
+          <div class="timeline-item success">
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <span class="timeline-title">⌨️ 批量命令执行</span>
+                <span class="timeline-time">2025-01-01 00:05:32</span>
+              </div>
+              <div class="timeline-desc">
+                在 <strong>3台设备</strong> 上执行命令: <code>df -h && free -m</code><br>
+                <span style="color: #67c23a;">✓ 全部成功</span> · 耗时 1.2s
+              </div>
+            </div>
+          </div>
+          
+          <div class="timeline-item success">
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <span class="timeline-title">📤 文件上传</span>
+                <span class="timeline-time">2025-01-01 00:02:15</span>
+              </div>
+              <div class="timeline-desc">
+                上传文件 <strong>deploy-v2.3.tar.gz</strong> (45.2MB) 到 <strong>3台设备</strong><br>
+                <span style="color: #67c23a;">✓ 全部成功</span> · 耗时 28.5s
+              </div>
+            </div>
+          </div>
+          
+          <div class="timeline-item failed">
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <span class="timeline-title">⌨️ 批量命令执行</span>
+                <span class="timeline-time">2024-12-31 23:58:41</span>
+              </div>
+              <div class="timeline-desc">
+                在 <strong>4台设备</strong> 上执行命令: <code>systemctl restart nginx</code><br>
+                <span style="color: #67c23a;">✓ 3台成功</span> · <span style="color: #f56c6c;">✗ 1台失败</span> (cache-server-01: 连接超时)
+              </div>
+            </div>
+          </div>
+          
+          <div class="timeline-item success">
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <span class="timeline-title">📥 文件下载</span>
+                <span class="timeline-time">2024-12-31 23:45:00</span>
+              </div>
+              <div class="timeline-desc">
+                从 <strong>web-server-01</strong> 下载文件 <strong>/var/log/nginx/access.log</strong> (12.5MB)<br>
+                <span style="color: #67c23a;">✓ 成功</span> · 耗时 5.2s
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 添加设备对话框 -->
+  <div class="modal-overlay hidden" id="modal-add-device">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>添加设备</h3>
+        <button class="modal-close" onclick="hideModal('add-device')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>设备名称 *</label>
+          <input type="text" placeholder="如: web-server-01">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>IP地址 *</label>
+            <input type="text" placeholder="192.168.1.100">
+          </div>
+          <div class="form-group">
+            <label>SSH端口</label>
+            <input type="text" placeholder="22" value="22">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>用户名 *</label>
+            <input type="text" placeholder="root">
+          </div>
+          <div class="form-group">
+            <label>认证方式</label>
+            <select>
+              <option>密码认证</option>
+              <option>密钥认证</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" placeholder="输入SSH密码">
+        </div>
+        <div class="form-group">
+          <label>分组</label>
+          <select style="width: 100%;">
+            <option>生产环境</option>
+            <option>测试环境</option>
+            <option>开发环境</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>备注</label>
+          <textarea rows="2" placeholder="可选，设备描述信息"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" style="background: #f0f2f5; color: #606266;" onclick="hideModal('add-device')">取消</button>
+        <button class="btn" style="background: #67c23a; color: #fff;">测试连接</button>
+        <button class="btn btn-primary">确认添加</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    function switchTab(el, tabId) {
+      document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+      el.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.remove('hidden');
+    }
+    
+    function showModal(id) {
+      document.getElementById('modal-' + id).classList.remove('hidden');
+    }
+    
+    function hideModal(id) {
+      document.getElementById('modal-' + id).classList.add('hidden');
+    }
+  </script>
+</body>
+</html>

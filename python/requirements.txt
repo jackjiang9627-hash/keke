@@ -1,4 +1,15 @@
 # Python依赖
+
+# Py4J - Java-Python桥接
 py4j>=0.10.9
+
+# 语义分析
 sentence-transformers>=2.2.0
 torch>=2.0.0
+
+# LLM后端
+# 阿里云千问API
+dashscope>=1.14.0
+
+# HTTP请求（用于Ollama调用）
+requests>=2.28.0

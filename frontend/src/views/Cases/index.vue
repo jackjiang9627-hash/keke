@@ -112,6 +112,7 @@
       title="新增案例"
       width="700px"
       destroy-on-close
+      draggable
     >
       <el-form :model="addForm" label-width="80px">
         <el-form-item label="标题" required>
@@ -152,6 +153,7 @@
       title="编辑案例"
       width="700px"
       destroy-on-close
+      draggable
     >
       <el-form :model="editForm" label-width="80px">
         <el-form-item label="标题" required>
@@ -190,20 +192,60 @@
         </div>
       </template>
     </el-dialog>
+    
+    <!-- 复习提醒弹窗 -->
+    <el-dialog 
+      v-model="reviewDialogVisible" 
+      title="📚 今日复习提醒"
+      width="600px"
+      :close-on-click-modal="false"
+      draggable
+    >
+      <div class="review-dialog-content">
+        <p class="review-hint">您有 <strong>{{ todayReviewCases.length }}</strong> 个案例需要复习：</p>
+        
+        <div class="review-list">
+          <div v-for="item in todayReviewCases" :key="item.id" class="review-item">
+            <div class="review-item-header">
+              <span class="review-item-title">{{ item.title }}</span>
+              <div class="mastery-stars">
+                <el-icon v-for="n in 5" :key="n" :class="{ active: n <= (item.masteryLevel || 1) }">
+                  <Star />
+                </el-icon>
+              </div>
+            </div>
+            <div class="review-item-tags" v-if="item.tags">
+              <el-tag v-for="tag in item.tags.split(',')" :key="tag" size="small" type="info">{{ tag.trim() }}</el-tag>
+            </div>
+            <div class="review-item-actions">
+              <el-button size="small" @click="viewCaseDetail(item)">查看详情</el-button>
+              <el-button size="small" type="success" @click="markReviewed(item, true)">已掌握</el-button>
+              <el-button size="small" type="warning" @click="markReviewed(item, false)">还需复习</el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="postponeAllReviews">全部延后到明天</el-button>
+        <el-button type="primary" @click="reviewDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Search, Plus, Upload, Download, Delete } from '@element-plus/icons-vue'
+import { Search, Plus, Upload, Download, Delete, Star } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import caseApi from '@/api/case'
 
 const searchText = ref('')
 const addDialogVisible = ref(false)
 const editDialogVisible = ref(false)
+const reviewDialogVisible = ref(false)
 const cases = ref([])
 const selectedCases = ref([])
+const todayReviewCases = ref([])
 
 const addForm = ref({
   title: '',
@@ -279,7 +321,8 @@ const showEditDialog = (item) => {
     moduleName: item.moduleName,
     summary: item.summary,
     content: item.content,
-    hyperlink: item.hyperlink
+    hyperlink: item.hyperlink,
+    tags: item.tags || ''
   }
   editDialogVisible.value = true
 }
@@ -456,9 +499,59 @@ const formatDateTime = (date) => {
   })
 }
 
+// === 复习相关方法 ===
+
+const loadTodayReviews = async () => {
+  try {
+    const res = await caseApi.getTodayReviews()
+    const data = res.data || res || []
+    todayReviewCases.value = data
+    if (data.length > 0) {
+      reviewDialogVisible.value = true
+    }
+  } catch (e) {
+    console.error('加载待复习案例失败', e)
+  }
+}
+
+const markReviewed = async (item, mastered) => {
+  try {
+    await caseApi.markReviewed(item.id, mastered)
+    ElMessage.success(mastered ? '已标记为掌握' : '已标记为还需复习')
+    // 从待复习列表中移除
+    todayReviewCases.value = todayReviewCases.value.filter(c => c.id !== item.id)
+    if (todayReviewCases.value.length === 0) {
+      reviewDialogVisible.value = false
+    }
+    loadCases()
+  } catch (e) {
+    ElMessage.error('操作失败')
+  }
+}
+
+const postponeAllReviews = async () => {
+  try {
+    for (const item of todayReviewCases.value) {
+      await caseApi.postponeReview(item.id)
+    }
+    ElMessage.success('已全部延后到明天')
+    todayReviewCases.value = []
+    reviewDialogVisible.value = false
+  } catch (e) {
+    ElMessage.error('操作失败')
+  }
+}
+
+const viewCaseDetail = (item) => {
+  reviewDialogVisible.value = false
+  showEditDialog(item)
+}
+
 onMounted(() => {
   loadCases()
   loadModules()
+  // 加载今日待复习案例
+  loadTodayReviews()
 })
 </script>
 
@@ -553,5 +646,74 @@ onMounted(() => {
     width: 100%;
     flex-wrap: wrap;
   }
+}
+
+/* 复习弹窗样式 */
+.review-dialog-content {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.review-hint {
+  margin-bottom: 16px;
+  color: #606266;
+}
+
+.review-hint strong {
+  color: #409eff;
+  font-size: 18px;
+}
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.review-item {
+  padding: 12px 16px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  border-left: 4px solid #409eff;
+}
+
+.review-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.review-item-title {
+  font-weight: 500;
+  color: #303133;
+  font-size: 15px;
+}
+
+.mastery-stars {
+  display: flex;
+  gap: 2px;
+}
+
+.mastery-stars .el-icon {
+  color: #dcdfe6;
+  font-size: 16px;
+}
+
+.mastery-stars .el-icon.active {
+  color: #f7ba2a;
+}
+
+.review-item-tags {
+  margin-bottom: 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.review-item-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 </style>

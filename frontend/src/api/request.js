@@ -4,7 +4,7 @@ import { ElMessage } from 'element-plus'
 // 创建axios实例
 const request = axios.create({
   baseURL: '',
-  timeout: 30000
+  timeout: 1200000  // 2分钟，LLM 调用可能较慢
 })
 
 // 请求拦截器

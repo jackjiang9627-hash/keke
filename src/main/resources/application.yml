@@ -40,6 +40,13 @@ spring:
 server:
   port: 8080
 
+# 文件上传配置（不限制文件大小）
+spring.servlet.multipart:
+  enabled: true
+  max-file-size: -1
+  max-request-size: -1
+  file-size-threshold: 0
+
 # 日志配置
 logging:
   level:

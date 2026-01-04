@@ -124,13 +124,42 @@
         <div class="settings-card">
           <div class="setting-item">
             <div class="setting-info">
-              <span class="setting-label">AI模型</span>
-              <span class="setting-desc">选择智能问答使用的AI模型</span>
+              <span class="setting-label">千问 API Key</span>
+              <span class="setting-desc">阿里云千问大模型 API 密钥（加密保存）</span>
             </div>
-            <el-select v-model="settings.aiModel" style="width: 180px">
-              <el-option label="本地模型" value="local" />
-              <el-option label="OpenAI GPT" value="openai" disabled />
-              <el-option label="通义千问" value="qwen" disabled />
+            <div class="api-key-input">
+              <el-input 
+                v-model="llmSettings.qwenApiKey" 
+                :placeholder="llmSettings.qwenApiKeyHasValue ? '已配置，输入新值替换' : '请输入 API Key'"
+                type="password"
+                show-password
+                style="width: 280px"
+              />
+              <el-tag v-if="llmSettings.qwenApiKeyHasValue" type="success" size="small">已配置</el-tag>
+            </div>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Ollama 地址</span>
+              <span class="setting-desc">本地 Ollama 服务地址</span>
+            </div>
+            <el-input 
+              v-model="llmSettings.ollamaBaseUrl" 
+              placeholder="http://localhost:11434"
+              style="width: 280px"
+            />
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">默认后端</span>
+              <span class="setting-desc">智能助手默认使用的 AI 后端</span>
+            </div>
+            <el-select v-model="llmSettings.defaultBackend" style="width: 180px">
+              <el-option label="千问 AI" value="qwen" />
+              <el-option label="本地模型 (Ollama)" value="ollama" />
+              <el-option label="Mock 模式" value="mock" />
             </el-select>
           </div>
           
@@ -140,6 +169,21 @@
               <span class="setting-desc">启用后案例搜索将使用语义匹配</span>
             </div>
             <el-switch v-model="settings.semanticSearch" />
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">语义匹配阈值</span>
+              <span class="setting-desc">案例匹配的最低相似度要求（百分比）</span>
+            </div>
+            <el-input-number 
+              v-model="llmSettings.semanticThreshold" 
+              :min="50" 
+              :max="100"
+              :step="5"
+              size="default"
+            />
+            <span style="margin-left: 8px; color: #909399;">%</span>
           </div>
         </div>
       </div>
@@ -167,8 +211,18 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import configApi from '@/api/config'
 
 const saving = ref(false)
+
+// LLM 配置
+const llmSettings = ref({
+  qwenApiKey: '',
+  qwenApiKeyHasValue: false,
+  ollamaBaseUrl: '',
+  defaultBackend: 'qwen',  // 默认使用千问
+  semanticThreshold: 70    // 语义匹配阈值（百分比）
+})
 
 const defaultSettings = {
   modules: {
@@ -188,7 +242,7 @@ const defaultSettings = {
 
 const settings = ref({ ...defaultSettings })
 
-const loadSettings = () => {
+const loadSettings = async () => {
   const saved = localStorage.getItem('keke_settings')
   if (saved) {
     try {
@@ -197,15 +251,61 @@ const loadSettings = () => {
       console.error('加载设置失败', e)
     }
   }
+  
+  // 加载 LLM 配置
+  try {
+    const res = await configApi.getLlmConfigs()
+    const configs = res.data || res || []
+    configs.forEach(cfg => {
+      if (cfg.key === 'llm.qwen.api_key') {
+        llmSettings.value.qwenApiKeyHasValue = cfg.hasValue
+      } else if (cfg.key === 'llm.ollama.base_url') {
+        llmSettings.value.ollamaBaseUrl = cfg.value || ''
+      } else if (cfg.key === 'llm.default_backend') {
+        llmSettings.value.defaultBackend = cfg.value || 'mock'
+      } else if (cfg.key === 'chat.semantic.threshold') {
+        // 阈值保存为0-1的小数，显示为百分比
+        const val = parseFloat(cfg.value)
+        if (!isNaN(val)) {
+          llmSettings.value.semanticThreshold = Math.round(val * 100)
+        }
+      }
+    })
+  } catch (e) {
+    console.error('加载 LLM 配置失败', e)
+  }
 }
 
 const saveSettings = async () => {
   saving.value = true
   try {
     localStorage.setItem('keke_settings', JSON.stringify(settings.value))
-    // TODO: 调用后端API保存配置
-    // await settingsApi.save(settings.value)
+    
+    // 保存 LLM 配置到后端
+    const llmConfigs = {}
+    if (llmSettings.value.qwenApiKey) {
+      llmConfigs['llm.qwen.api_key'] = llmSettings.value.qwenApiKey
+    }
+    if (llmSettings.value.ollamaBaseUrl) {
+      llmConfigs['llm.ollama.base_url'] = llmSettings.value.ollamaBaseUrl
+    }
+    if (llmSettings.value.defaultBackend) {
+      llmConfigs['llm.default_backend'] = llmSettings.value.defaultBackend
+    }
+    // 保存语义匹配阈值（转换为0-1的小数）
+    llmConfigs['chat.semantic.threshold'] = (llmSettings.value.semanticThreshold / 100).toFixed(2)
+    
+    if (Object.keys(llmConfigs).length > 0) {
+      await configApi.saveLlmConfigs(llmConfigs)
+    }
+    
     ElMessage.success('保存成功')
+    
+    // 刷新 LLM 配置状态
+    if (llmSettings.value.qwenApiKey) {
+      llmSettings.value.qwenApiKeyHasValue = true
+      llmSettings.value.qwenApiKey = '' // 清空输入
+    }
   } catch (e) {
     ElMessage.error('保存失败')
   } finally {
@@ -346,5 +446,11 @@ onMounted(loadSettings)
   padding: 20px 0;
   border-top: 1px solid #f0f0f0;
   margin-top: 12px;
+}
+
+.api-key-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>

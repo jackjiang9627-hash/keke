@@ -1,1566 +1,831 @@
-# 日志清洗与分析系统 (Log Analyzer System)
+# Keke - 智能工作助手与系统管理平台
 
-基于 **DDD（领域驱动设计）** 架构的日志清洗与分析系统，使用 Java 17+ 和 Spring Boot 3.2 构建。
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://www.oracle.com/java/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Vue](https://img.shields.io/badge/Vue-3.0-green.svg)](https://v3.vuejs.org/)
+[![DDD](https://img.shields.io/badge/Architecture-DDD-blue.svg)](https://en.wikipedia.org/wiki/Domain-driven_design)
 
-## 目录
+基于 **领域驱动设计(DDD)** 和 **六边形架构** 的企业级智能工作助手系统,集成日志分析、案例管理、系统监控、SSH运维、AI问答等功能。
+
+## 📖 目录
 
 - [项目简介](#项目简介)
-- [DDD理论基础](#ddd理论基础)
-  - [什么是DDD](#什么是ddd)
-  - [为什么需要DDD](#为什么需要ddd)
-  - [DDD的核心思想](#ddd的核心思想)
-- [战略设计](#战略设计)
-  - [领域与子域](#领域与子域)
+- [核心特性](#核心特性)
+- [技术架构](#技术架构)
+  - [DDD理论基础](#ddd理论基础)
+  - [战略设计](#战略设计)
+  - [战术设计](#战术设计)
   - [限界上下文](#限界上下文)
-  - [上下文映射](#上下文映射)
-- [战术设计](#战术设计)
-  - [实体](#实体entity)
-  - [值对象](#值对象value-object)
-  - [聚合与聚合根](#聚合与聚合根)
-  - [领域服务](#领域服务domain-service)
-  - [仓储](#仓储repository)
-  - [应用服务](#应用服务application-service)
-  - [领域事件](#领域事件domain-event)
-- [六边形架构](#六边形架构)
-- [DDD实践步骤](#ddd实践步骤)
-- [本项目DDD实践](#本项目ddd实践)
-- [类图](#类图)
-- [时序图](#时序图)
+  - [包结构设计](#包结构设计)
+- [技术栈](#技术栈)
 - [快速开始](#快速开始)
-- [API接口文档](#api接口文档)
+- [API文档](#api文档)
+- [设计模式](#设计模式)
+- [SOLID原则应用](#solid原则应用)
+- [开发规范](#开发规范)
 
 ---
 
 ## 项目简介
 
-本系统是一个基于DDD架构的智能日志分析和工作助手平台，实现了多个限界上下文的集成：
+Keke 是一个基于DDD架构的智能工作助手和系统管理平台,通过限界上下文划分实现了高内聚低耦合的模块化设计。系统采用Java 21 + Spring Boot 3.2作为后端,Vue 3 + Vite作为前端,Python作为AI引擎,实现了多语言协同的现代化架构。
 
-### 核心功能模块
+### 🎯 核心理念
 
-#### 1. 日志分析上下文 (Log Context)
-
-- **日志接收**：支持接收各种格式的日志数据
-- **日志清洗**：自动识别并解析标准格式、JSON格式、纯文本格式日志
-- **日志分析**：提供统计、分组、搜索等分析能力
-- **日志存储**：持久化存储清洗后的日志数据
-
-#### 2. 工作助手上下文 (Assistant Context)
-
-- **案例库**：知识案例管理，支持语义搜索、Excel导入导出
-  - 基于 Python + Sentence-Transformers 的语义向量检索
-  - 智能去重和相似度匹配
-  - 多模块分类管理
-- **待办事项**：Todo任务管理，支持优先级、完成状态跟踪
-- **智能问答**：ChatGPT风格的对话界面，右侧滑出面板
-  - 当前状态：Mock 数据，基于关键词匹配
-  - 计划功能：集成大语言模型 + RAG检索增强
-
-#### 3. 系统监控上下文 (Monitor Context)
-
-- **系统信息监控**：基于 OSHI 库实时采集系统指标
-  - CPU使用率、核心数、进程数
-  - 内存使用情况（总量、已用、可用）
-  - 磁盘空间使用率
-  - 网络流量统计（上行/下行）
-- **进程监控**：Top 5 CPU/内存占用进程
-- **历史数据查询**：支持时间范围查询和 Excel 导出
-- **定时采集**：每分钟自动采集系统指标
-
-### 技术亮点
-
-- **DDD架构**：按限界上下文划分模块，清晰的分层结构
-- **六边形架构**：端口-适配器模式，领域层与基础设施层解耦
-- **Java-Python 集成**：通过 Py4J 集成 Python 语义搜索能力
-- **智能语义搜索**：使用 sentence-transformers 实现案例语义匹配
-- **Excel 通用导出**：基于建造者模式的 ExcelBuilder 工具类
-- **系统监控**：跨平台系统信息采集（OSHI）
-- **现代化前端**：Vue 3 + Vite + Element Plus，响应式设计
+- **领域驱动设计**: 以业务领域为核心,建立统一语言,代码即文档
+- **六边形架构**: 端口-适配器模式,领域层与基础设施完全解耦
+- **SOLID原则**: 单一职责、开闭原则、依赖倒置贯穿整个架构
+- **设计模式**: 策略、工厂、建造者、适配器等模式的实战应用
 
 ---
 
-## DDD理论基础
+## 核心特性
 
-### 什么是DDD
+### 1. 📋 工作助手上下文 (Assistant Context)
 
-**DDD（Domain-Driven Design，领域驱动设计）** 是由 Eric Evans 在2003年提出的一套软件开发方法论。它的核心理念是：
+#### 案例库管理
+- ✅ **智能语义搜索**: 基于Sentence-Transformers的多语言语义向量检索
+- ✅ **精确+模糊匹配**: 标题完全匹配优先(100%),包含匹配(95%),语义匹配(阈值可配)
+- ✅ **案例去重**: 同模块下标题唯一性约束,领域服务层验证
+- ✅ **Excel导入导出**: 支持按模块分sheet导出,批量导入自动更新
+- ✅ **标签分类**: 多标签支持,便于知识分类管理
+- ✅ **复习功能**: 支持间隔复习提醒,艾宾浩斯遗忘曲线应用
 
-> "将软件开发的焦点放在核心业务（领域）上，通过与领域专家紧密合作，建立反映业务本质的领域模型。"
+#### 智能问答
+- ✅ **对话历史管理**: 支持多轮对话上下文保持
+- ✅ **案例优先匹配**: 先语义匹配本地案例库,未匹配再调用LLM
+- ✅ **总结功能**: AI自动总结对话内容并生成案例
+- ✅ **多模型支持**: 兼容千问API、本地Ollama等多种LLM后端
+
+#### 待办管理
+- ✅ **优先级管理**: 1-5级优先级设置
+- ✅ **今日待办**: 按截止日期筛选展示
+- ✅ **完成状态**: 一键切换完成/未完成
+
+### 2. 📊 日志分析上下文 (Log Context)
+
+- ✅ **多格式解析**: 自动识别标准日志、JSON格式、纯文本
+- ✅ **智能清洗**: 策略模式实现的多策略清洗引擎
+- ✅ **统计分析**: 按级别、应用、时间维度统计
+- ✅ **文件上传**: 支持大文件日志上传解析
+- ✅ **行检测**: 智能识别多行日志(堆栈信息)
+
+### 3. 📈 系统监控上下文 (Monitor Context)
+
+- ✅ **实时指标**: CPU、内存、磁盘、网络实时监控
+- ✅ **进程监控**: Top 5 CPU/内存占用进程
+- ✅ **历史数据**: 定时采集(每分钟),支持时间范围查询
+- ✅ **Excel导出**: 监控数据报表导出
+- ✅ **跨平台**: 基于OSHI库,支持Windows/Linux/macOS
+
+### 4. 🖥️ SSH运维上下文 (SSH Context)
+
+- ✅ **设备管理**: 支持IP、用户名、密码加密存储
+- ✅ **批量导入**: 文本粘贴批量添加设备
+- ✅ **命令执行**: SSH远程命令执行,支持批量操作
+- ✅ **文件传输**: SFTP文件上传下载
+- ✅ **任务历史**: 执行记录持久化,支持查询
+
+### 5. ⚙️ 系统配置上下文 (Shared Context)
+
+- ✅ **敏感信息加密**: API Key等敏感配置AES加密存储
+- ✅ **动态配置**: 语义匹配阈值、LLM参数等动态可调
+- ✅ **前端配置界面**: 可视化配置管理
+
+---
+
+## 技术架构
+
+### DDD理论基础
+
+#### 什么是DDD
+
+**DDD(Domain-Driven Design,领域驱动设计)** 是由 Eric Evans 在2003年提出的软件开发方法论。核心理念：
+
+> "将软件开发的焦点放在核心业务(领域)上,通过与领域专家紧密合作,建立反映业务本质的领域模型。"
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        DDD核心价值                           │
 ├─────────────────────────────────────────────────────────────┤
-│  1. 聚焦业务复杂性，而非技术复杂性                            │
-│  2. 建立统一的业务语言（Ubiquitous Language）                 │
+│  1. 聚焦业务复杂性,而非技术复杂性                            │
+│  2. 建立统一的业务语言(Ubiquitous Language)                  │
 │  3. 让代码成为业务知识的载体                                  │
-│  4. 通过模型驱动设计，保持模型与代码的一致性                   │
+│  4. 通过模型驱动设计,保持模型与代码的一致性                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 为什么需要DDD
+#### 为什么需要DDD
 
-| 场景 | 传统开发方式问题 | DDD解决方案 |
-|------|-----------------|-------------|
-| 业务复杂 | 代码与业务脱节，维护困难 | 领域模型与业务概念一一对应 |
+| 场景 | 传统开发问题 | DDD解决方案 |
+|------|------------|-------------|
+| 业务复杂 | 代码与业务脱节,维护困难 | 领域模型与业务概念一一对应 |
 | 需求变化 | 牵一发动全身 | 限界上下文隔离变化影响 |
 | 团队协作 | 开发与业务沟通困难 | 统一语言消除沟通障碍 |
 | 系统演进 | 架构腐化严重 | 清晰的分层和职责边界 |
 
-### DDD的核心思想
+### 战略设计
+
+#### 领域与子域
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    DDD = 战略设计 + 战术设计                  │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   战略设计 (Strategic Design)                                │
-│   ├── 定义问题域：识别核心域、支撑域、通用域                   │
-│   ├── 划分限界上下文：确定模型边界                            │
-│   └── 上下文映射：定义上下文之间的关系                         │
-│                                                             │
-│   战术设计 (Tactical Design)                                 │
-│   ├── 实体 (Entity)：有唯一标识的对象                         │
-│   ├── 值对象 (Value Object)：描述性的不可变对象               │
-│   ├── 聚合 (Aggregate)：一组相关对象的集合                    │
-│   ├── 领域服务 (Domain Service)：无状态的业务操作             │
-│   ├── 仓储 (Repository)：聚合的持久化抽象                     │
-│   └── 领域事件 (Domain Event)：领域中发生的事情               │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 战略设计
-
-战略设计关注的是**大局**，帮助我们理解业务全貌，划分系统边界。
-
-### 领域与子域
-
-**领域（Domain）** 是指软件要解决的问题空间。一个复杂的领域可以划分为多个子域：
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      日志分析系统领域                         │
+│                      Keke系统领域划分                         │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐          │
 │   │   核心域     │ │   支撑域     │ │   通用域     │          │
-│   │  Core Domain│ │Support Domain│ │Generic Domain│         │
+│   │  Core       │ │   Support   │ │   Generic   │          │
 │   ├─────────────┤ ├─────────────┤ ├─────────────┤          │
-│   │ • 日志清洗   │ │ • 用户认证   │ │ • 邮件通知   │          │
-│   │ • 日志分析   │ │ • 权限管理   │ │ • 文件存储   │          │
-│   │ • 异常检测   │ │ • 审计日志   │ │ • 定时任务   │          │
+│   │• 智能问答    │ │• 日志分析    │ │• 系统配置    │          │
+│   │• 案例管理    │ │• SSH运维     │ │• Excel导出   │          │
+│   │• 语义搜索    │ │• 系统监控    │ │• Python集成  │          │
 │   └─────────────┘ └─────────────┘ └─────────────┘          │
 │         ▲               ▲               ▲                  │
 │         │               │               │                  │
-│    核心竞争力        业务必需         可外购/复用             │
+│    核心竞争力        业务必需         可复用组件             │
 │    投入最多资源      适度投入         最小投入               │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-| 子域类型 | 特点 | 投资策略 | 本项目示例 |
-|---------|------|---------|------------|
-| **核心域** | 核心竞争力，业务差异化 | 投入最多资源，自研 | 日志清洗、日志分析 |
-| **支撑域** | 业务必需，但非核心 | 适度投入 | 用户管理（未实现） |
-| **通用域** | 通用能力，可复用 | 使用成熟方案 | 数据存储（JPA） |
+### 战术设计
+
+#### 1. 实体 (Entity)
+
+具有唯一标识的领域对象:
+
+```java
+// 案例实体 - 聚合根
+public class CaseEntry {
+    private CaseId id;              // 唯一标识
+    private String title;            // 可变状态
+    private String content;
+    private float[] embedding;       // 语义向量
+    
+    // 业务方法:改变实体状态
+    public void updateContent(String newContent) {
+        this.content = newContent;
+        this.updatedAt = LocalDateTime.now();
+    }
+}
+```
+
+#### 2. 值对象 (Value Object)
+
+不可变的描述性对象:
+
+```java
+// 案例ID值对象
+public record CaseId(String value) {
+    public static CaseId generate() {
+        return new CaseId(UUID.randomUUID().toString());
+    }
+    
+    public static CaseId of(String value) {
+        return new CaseId(value);
+    }
+}
+```
+
+#### 3. 领域服务 (Domain Service)
+
+封装不属于单个实体的业务逻辑:
+
+```java
+@Service
+public class CaseDomainService {
+    private final CaseRepository caseRepository;
+    
+    // 去重检查 - 跨实体的业务规则
+    public boolean isDuplicate(String title, String module) {
+        return caseRepository.findByTitleAndModule(title, module)
+            .isPresent();
+    }
+}
+```
+
+#### 4. 仓储 (Repository)
+
+聚合的集合抽象,隐藏持久化细节:
+
+```java
+// 领域层定义接口
+public interface CaseRepository {
+    CaseEntry save(CaseEntry entity);
+    Optional<CaseEntry> findById(CaseId id);
+    List<CaseEntry> findAll(int page, int size);
+}
+
+// 基础设施层实现
+@Repository
+public class CaseRepositoryImpl implements CaseRepository {
+    private final CaseEntryJpaRepository jpaRepository;
+    
+    @Override
+    public CaseEntry save(CaseEntry entity) {
+        CaseEntryPO po = toPO(entity);
+        CaseEntryPO saved = jpaRepository.save(po);
+        return toDomain(saved);
+    }
+}
+```
+
+#### 5. 应用服务 (Application Service)
+
+用例编排者,不包含业务逻辑:
+
+```java
+@Service
+@Transactional
+public class CaseApplicationService {
+    private final CaseRepository caseRepository;
+    private final SemanticSearchPort semanticSearchPort;
+    private final CaseDomainService caseDomainService;
+    
+    public CaseOutputDTO addCase(CaseInputDTO input) {
+        // 1. 调用领域服务验证
+        if (caseDomainService.isDuplicate(input.getTitle(), input.getModuleName())) {
+            throw new IllegalArgumentException("案例已存在");
+        }
+        
+        // 2. 创建领域对象
+        CaseEntry entry = CaseEntry.create(input.getTitle(), ...);
+        
+        // 3. 调用端口计算语义向量
+        float[] embedding = semanticSearchPort.computeEmbedding(entry.getSearchableText());
+        entry.setEmbedding(embedding);
+        
+        // 4. 持久化
+        CaseEntry saved = caseRepository.save(entry);
+        
+        // 5. 转换DTO
+        return toOutputDTO(saved);
+    }
+}
+```
 
 ### 限界上下文
 
-**限界上下文（Bounded Context）** 是DDD中最重要的战略模式，它定义了模型的边界。
+系统按照业务领域划分为5个限界上下文:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    为什么需要限界上下文？                      │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   问题：同一个词在不同业务场景含义不同                         │
-│                                                             │
-│   例如 "Log" 在不同上下文的含义：                            │
-│                                                             │
-│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐ │
-│   │  采集上下文   │    │  清洗上下文   │    │  分析上下文   │ │
-│   ├──────────────┤    ├──────────────┤    ├──────────────┤ │
-│   │ Log = 原始   │    │ Log = 结构化 │    │ Log = 指标   │ │
-│   │ 日志流       │    │ 日志记录     │    │ 数据源       │ │
-│   │              │    │              │    │              │ │
-│   │ 关注：       │    │ 关注：       │    │ 关注：       │ │
-│   │ - 采集效率   │    │ - 格式解析   │    │ - 统计聚合   │ │
-│   │ - 数据完整性 │    │ - 字段提取   │    │ - 趋势分析   │ │
-│   └──────────────┘    └──────────────┘    └──────────────┘ │
-│                                                             │
-│   解决方案：每个上下文内使用统一语言，上下文之间通过明确接口通信 │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**本项目的限界上下文设计：**
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│              日志清洗与分析系统 - 限界上下文                   │
+│                      Keke系统限界上下文                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │   ┌─────────────────────────────────────────────────────┐   │
-│   │                  日志处理上下文                       │   │
-│   │               (Log Processing Context)               │   │
-│   │                                                      │   │
-│   │   统一语言 (Ubiquitous Language):                    │   │
-│   │   • LogEntry - 日志条目（聚合根）                     │   │
-│   │   • RawContent - 原始日志内容                        │   │
-│   │   • CleanedContent - 清洗后的内容                    │   │
-│   │   • LogLevel - 日志级别                              │   │
-│   │   • LogSource - 日志来源                             │   │
-│   │   • Cleansing - 清洗（动作）                         │   │
-│   │   • CleansingStrategy - 清洗策略                     │   │
-│   │                                                      │   │
+│   │         工作助手上下文 (Assistant Context)           │   │
+│   │   • CaseEntry(聚合根)  • TodoItem(聚合根)            │   │
+│   │   • SemanticSearchPort • LlmPort (领域端口)         │   │
+│   │   • CaseDomainService • CaseAssembler               │   │
+│   │   • CaseException层次结构 (领域异常)                 │   │
 │   └─────────────────────────────────────────────────────┘   │
 │                                                             │
 │   ┌─────────────────────────────────────────────────────┐   │
-│   │                  工作助手上下文                       │   │
-│   │               (Assistant Context)                   │   │
-│   │                                                      │   │
-│   │   统一语言 (Ubiquitous Language):                    │   │
-│   │   • CaseEntry - 案例条目（聚合根）                    │   │
-│   │   • TodoItem - 待办事项（聚合根）                    │   │
-│   │   • ModuleName - 模块名称                            │   │
-│   │   • Embedding - 语义向量                             │   │
-│   │   • SemanticSearch - 语义搜索（动作）                 │   │
-│   │   • Priority - 优先级                                 │   │
-│   │   • Similarity - 相似度                              │   │
-│   │                                                      │   │
+│   │          日志分析上下文 (Log Context)                │   │
+│   │   • LogEntry(聚合根)                                 │   │
+│   │   • LogCleansingService • LogAnalysisService        │   │
+│   │   • LogFileParser (领域端口)                         │   │
 │   └─────────────────────────────────────────────────────┘   │
 │                                                             │
 │   ┌─────────────────────────────────────────────────────┐   │
-│   │                  系统监控上下文                       │   │
-│   │               (Monitor Context)                     │   │
-│   │                                                      │   │
-│   │   统一语言 (Ubiquitous Language):                    │   │
-│   │   • MonitorSnapshot - 监控快照（聚合根）             │   │
-│   │   • SystemInfo - 系统信息                             │   │
-│   │   • CpuMetrics - CPU指标                            │   │
-│   │   • MemoryMetrics - 内存指标                        │   │
-│   │   • DiskMetrics - 磁盘指标                          │   │
-│   │   • NetworkMetrics - 网络指标                      │   │
-│   │   • ProcessInfo - 进程信息                           │   │
-│   │                                                      │   │
+│   │         系统监控上下文 (Monitor Context)             │   │
+│   │   • MonitorSnapshot(聚合根) • MonitorTask(聚合根)    │   │
+│   │   • SystemInfoCollector (领域端口)                   │   │
+│   │   • MonitorException层次结构 (领域异常)              │   │
+│   └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │          SSH运维上下文 (SSH Context)                 │   │
+│   │   • Device(聚合根) • SshTask(聚合根)                 │   │
+│   │   • SshExecutor • FileTransferPort (领域端口)        │   │
+│   │   • SshTaskAssembler • SshException层次结构          │   │
+│   └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │          共享内核 (Shared Kernel)                    │   │
+│   │   • SystemConfig • EncryptionPort (领域端口)         │   │
+│   │   • ExcelBuilder (应用层工具) • PythonBridge        │   │
 │   └─────────────────────────────────────────────────────┘   │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 上下文映射
+### Port-Adapter完整映射
 
-**上下文映射（Context Mapping）** 描述不同限界上下文之间的关系。
+领域层定义端口接口，基础设施层提供适配器实现:
+
+| 限界上下文 | Port (领域层) | Adapter (基础设施层) | 职责 |
+|-----------|--------------|---------------------|------|
+| Assistant | `LlmPort` | `PythonLlmAdapter` | LLM对话服务 |
+| Assistant | `SemanticSearchPort` | `PythonSemanticSearchAdapter` | 语义向量搜索 |
+| Log | `LogFileParser` | `LogFileParserImpl` | 日志文件解析 |
+| Monitor | `SystemInfoCollector` | `OshiSystemInfoCollector` | 系统信息采集 |
+| SSH | `SshExecutor` | `SshdExecutorAdapter` | SSH命令执行 |
+| SSH | `FileTransferPort` | `SftpTransferManager` | 文件传输服务 |
+| Shared | `EncryptionPort` | `AesEncryptionService` | 敏感数据加密 |
+
+### 包结构设计
+
+```
+src/main/java/com/keke/
+│
+├── assistant/                      # 工作助手限界上下文
+│   ├── domain/                     # 领域层 ★核心★
+│   │   ├── entity/
+│   │   │   ├── CaseEntry.java     # 聚合根
+│   │   │   └── TodoItem.java      # 聚合根
+│   │   ├── valueobject/
+│   │   │   ├── CaseId.java
+│   │   │   └── TodoId.java
+│   │   ├── exception/                 # 领域异常 (新增)
+│   │   │   ├── CaseException.java
+│   │   │   ├── CaseNotFoundException.java
+│   │   │   └── CaseDuplicateException.java
+│   │   ├── service/
+│   │   │   └── CaseDomainService.java
+│   │   ├── port/
+│   │   │   ├── SemanticSearchPort.java  # 端口
+│   │   │   └── LlmPort.java             # 端口
+│   │   └── repository/
+│   │       ├── CaseRepository.java
+│   │       └── TodoRepository.java
+│   │
+│   ├── application/                # 应用层
+│   │   ├── assembler/                 # Assembler模式 (新增)
+│   │   │   └── CaseAssembler.java
+│   │   ├── service/
+│   │   │   ├── CaseApplicationService.java
+│   │   │   ├── CaseExcelService.java
+│   │   │   ├── ChatApplicationService.java
+│   │   │   └── TodoApplicationService.java
+│   │   └── dto/
+│   │       ├── CaseInputDTO.java
+│   │       ├── CaseOutputDTO.java
+│   │       ├── TodoInputDTO.java
+│   │       └── TodoOutputDTO.java
+│   │
+│   ├── infrastructure/             # 基础设施层
+│   │   ├── adapter/
+│   │   │   ├── PythonSemanticSearchAdapter.java  # 适配器
+│   │   │   ├── SimpleSemanticSearchAdapter.java
+│   │   │   └── PythonLlmAdapter.java
+│   │   ├── config/
+│   │   │   └── DomainServiceConfig.java
+│   │   └── persistence/
+│   │       ├── entity/
+│   │       │   ├── CaseEntryPO.java
+│   │       │   └── TodoItemPO.java
+│   │       └── repository/
+│   │           ├── CaseEntryJpaRepository.java
+│   │           ├── CaseRepositoryImpl.java
+│   │           ├── TodoItemJpaRepository.java
+│   │           └── TodoRepositoryImpl.java
+│   │
+│   └── interfaces/                 # 接口层
+│       └── rest/
+│           ├── CaseController.java
+│           ├── TodoController.java
+│           ├── ChatController.java
+│           └── GlobalExceptionHandler.java
+│
+├── log/                            # 日志分析限界上下文
+│   ├── domain/
+│   │   ├── entity/LogEntry.java
+│   │   ├── valueobject/{LogId, LogLevel, LogSource, CleansingResult}
+│   │   ├── service/{LogCleansingService, LogAnalysisService}
+│   │   ├── port/LogFileParser.java
+│   │   └── repository/LogEntryRepository.java
+│   ├── application/
+│   ├── infrastructure/
+│   └── interfaces/
+│
+├── monitor/                        # 系统监控限界上下文
+│   ├── domain/
+│   │   ├── entity/{MonitorSnapshot, MonitorTask}
+│   │   ├── valueobject/{CpuInfo, MemoryInfo, DiskInfo...}
+│   │   ├── exception/                 # 领域异常 (新增)
+│   │   │   ├── MonitorException.java
+│   │   │   ├── MonitorTaskNotFoundException.java
+│   │   │   └── InvalidMonitorTaskException.java
+│   │   ├── port/SystemInfoCollector.java
+│   │   └── service/MonitorDomainService.java
+│   ├── application/
+│   ├── infrastructure/
+│   └── interfaces/
+│
+├── ssh/                            # SSH运维限界上下文
+│   ├── domain/
+│   │   ├── entity/{Device, SshTask, SshTaskResult}
+│   │   ├── valueobject/{DeviceId, SshCredentials...}
+│   │   ├── exception/                 # 领域异常 (新增)
+│   │   │   ├── SshException.java
+│   │   │   ├── SshTaskNotFoundException.java
+│   │   │   └── DeviceNotFoundException.java
+│   │   ├── port/                      # 领域端口
+│   │   │   ├── SshExecutor.java
+│   │   │   └── FileTransferPort.java  # 新增
+│   │   └── repository/{DeviceRepository, SshTaskRepository}
+│   ├── application/
+│   │   ├── assembler/                 # Assembler模式 (新增)
+│   │   │   └── SshTaskAssembler.java
+│   │   ├── service/
+│   │   │   ├── DeviceApplicationService.java
+│   │   │   ├── SshTaskApplicationService.java
+│   │   │   └── FileTransferApplicationService.java  # 新增
+│   │   └── dto/{DeviceDTO, SshTaskDTO, TransferProgressDTO...}
+│   ├── infrastructure/
+│   │   ├── adapter/
+│   │   │   ├── SshdExecutorAdapter.java
+│   │   │   └── SftpTransferManager.java  # 实现FileTransferPort
+│   │   └── persistence/...
+│   └── interfaces/
+│       └── rest/
+│           ├── DeviceController.java
+│           ├── SshTaskController.java
+│           └── FileTransferController.java
+│
+├── shared/                         # 共享内核
+│   ├── domain/
+│   │   ├── entity/SystemConfig.java
+│   │   ├── port/                      # 新增端口
+│   │   │   └── EncryptionPort.java
+│   │   └── repository/SystemConfigRepository.java
+│   ├── application/
+│   │   ├── dto/PageDTO.java
+│   │   ├── utils/                     # 应用层工具 (新增)
+│   │   │   └── ExcelBuilder.java
+│   │   └── service/{SystemConfigService}
+│   ├── infrastructure/
+│   │   ├── python/
+│   │   │   ├── PythonBridge.java
+│   │   │   ├── PythonTask.java
+│   │   │   ├── PythonTaskQueue.java
+│   │   │   ├── PythonProcessManager.java
+│   │   │   └── PythonGatewayServer.java
+│   │   ├── crypto/
+│   │   │   └── AesEncryptionService.java  # 实现EncryptionPort
+│   │   ├── config/WebConfig.java
+│   │   └── persistence/...
+│   └── interfaces/
+│       └── rest/SystemConfigController.java
+│
+└── KekeApplication.java            # 启动类
+```
+
+### 六边形架构
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    常见的上下文映射模式                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   1. 合作关系 (Partnership)                                 │
-│      两个上下文紧密合作，共同演进                             │
-│      [上下文A] ←──共同目标──→ [上下文B]                       │
-│                                                             │
-│   2. 共享内核 (Shared Kernel)                               │
-│      两个上下文共享部分模型                                   │
-│      [上下文A] ←──共享模型──→ [上下文B]                       │
-│                                                             │
-│   3. 客户-供应商 (Customer-Supplier)                         │
-│      上游供应商为下游客户提供服务                             │
-│      [供应商] ────提供服务────→ [客户]                        │
-│                                                             │
-│   4. 防腐层 (Anti-Corruption Layer, ACL)                    │
-│      隔离外部系统的影响                                       │
-│      [外部系统] ──ACL转换──→ [本系统]                         │
-│                                                             │
-│   5. 开放主机服务 (Open Host Service, OHS)                   │
-│      通过公开API对外提供服务                                  │
-│      [上下文] ──REST API──→ [多个消费者]                      │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 战术设计
-
-战术设计关注的是**具体实现**，提供了一套构建领域模型的模式。
-
-### 实体（Entity）
-
-实体是具有**唯一标识**的领域对象，即使属性完全相同，只要标识不同就是不同的对象。
-
-```java
-// 实体的特征：
-// 1. 有唯一标识（ID）
-// 2. 可变的（状态可以改变）
-// 3. 生命周期贯穿业务流程
-
-/**
- * 日志条目实体 - 本项目的聚合根
- */
-public class LogEntry {
-    private LogId id;           // 唯一标识
-    private String rawContent;   // 可变状态
-    private String cleanedContent;
-    private LogLevel level;
-    private boolean cleaned;     // 状态标记
-    
-    // 业务方法：改变实体状态
-    public void applyCleansing(CleansingResult result) {
-        this.cleanedContent = result.getCleanedContent();
-        this.level = LogLevel.fromString(result.extractLevel());
-        this.cleaned = true;  // 状态变更
-    }
-}
-```
-
-**实体设计原则：**
-
-| 原则 | 说明 | 示例 |
-|------|------|------|
-| 唯一标识 | 每个实体必须有唯一标识 | `LogId` 使用UUID |
-| 封装业务逻辑 | 业务操作放在实体内部 | `applyCleansing()` |
-| 保持一致性 | 实体负责维护自身的不变量 | 清洗后`cleaned=true` |
-
-### 值对象（Value Object）
-
-值对象是**没有唯一标识**的不可变对象，完全由其属性值定义。
-
-```java
-// 值对象的特征：
-// 1. 无唯一标识
-// 2. 不可变（Immutable）
-// 3. 通过属性值判断相等性
-// 4. 可以自由替换
-
-/**
- * 日志来源值对象
- */
-public record LogSource(
-    String application,    // 应用名
-    String host,          // 主机
-    String environment    // 环境
-) {
-    // 不可变：一旦创建不能修改
-    // 如需修改，创建新对象
-    public LogSource withEnvironment(String newEnv) {
-        return new LogSource(application, host, newEnv);
-    }
-}
-
-/**
- * 日志级别值对象（枚举实现）
- */
-public enum LogLevel {
-    TRACE(0, "跟踪"),
-    DEBUG(1, "调试"),
-    INFO(2, "信息"),
-    WARN(3, "警告"),
-    ERROR(4, "错误"),
-    FATAL(5, "致命");
-    
-    // 值对象可以包含行为
-    public boolean isHigherOrEqualThan(LogLevel other) {
-        return this.priority >= other.priority;
-    }
-}
-```
-
-**实体 vs 值对象对比：**
-
-```
-┌────────────────────────────────────────────────────────────┐
-│           实体 (Entity)       vs      值对象 (Value Object) │
-├────────────────────────────────────────────────────────────┤
-│  有唯一标识                           无唯一标识             │
-│  可变的                               不可变的               │
-│  通过ID判断相等                       通过属性值判断相等     │
-│  有生命周期                           无生命周期概念         │
-│  例：LogEntry                         例：LogSource         │
-│                                                            │
-│  问自己："这两个对象是同一个吗？"                           │
-│  如果看ID → 用实体                                         │
-│  如果看属性值 → 用值对象                                    │
-└────────────────────────────────────────────────────────────┘
-```
-
-### 聚合与聚合根
-
-**聚合（Aggregate）** 是一组相关对象的集合，作为数据修改的单元。**聚合根（Aggregate Root）** 是聚合的入口点。
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   聚合设计原则                               │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   ┌─────────────────────────────────────────────────────┐   │
-│   │                  LogEntry聚合                        │   │
-│   │                    ┌───────────┐                     │   │
-│   │                    │ LogEntry  │ ← 聚合根            │   │
-│   │                    │ (根实体)   │                     │   │
-│   │                    └─────┬─────┘                     │   │
-│   │              ┌─────────┼─────────┐                   │   │
-│   │              ▼          ▼         ▼                   │   │
-│   │        ┌────────┐ ┌────────┐ ┌────────┐              │   │
-│   │        │ LogId  │ │LogLevel│ │LogSource│             │   │
-│   │        │(值对象) │ │(值对象) │ │(值对象) │              │   │
-│   │        └────────┘ └────────┘ └────────┘              │   │
-│   │                                                      │   │
-│   │   规则：                                              │   │
-│   │   1. 外部只能通过聚合根访问聚合内的对象                 │   │
-│   │   2. 聚合内的对象可以引用其他聚合根                    │   │
-│   │   3. 聚合是事务边界                                   │   │
-│   │   4. 聚合尽量小                                       │   │
-│   └─────────────────────────────────────────────────────┘   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-```java
-/**
- * LogEntry 是聚合根
- * - 作为整个聚合的入口
- * - 保护聚合内部对象的一致性
- * - 仓储只针对聚合根操作
- */
-public class LogEntry {
-    private LogId id;          // 被聚合根保护
-    private LogSource source;  // 被聚合根保护
-    private LogLevel level;    // 被聚合根保护
-    
-    // 工厂方法：创建新聚合
-    public static LogEntry createRaw(String content, LogSource source) {
-        LogEntry entry = new LogEntry();
-        entry.id = LogId.generate();  // 聚合根负责创建ID
-        entry.source = source;
-        return entry;
-    }
-    
-    // 聚合根暴露的业务方法
-    public void applyCleansing(CleansingResult result) {
-        // 聚合根维护内部一致性
-    }
-}
-```
-
-### 领域服务（Domain Service）
-
-当业务逻辑**不属于任何实体或值对象**时，使用领域服务。
-
-```java
-/**
- * 领域服务的特征：
- * 1. 无状态
- * 2. 操作多个领域对象
- * 3. 封装领域逻辑（不是技术逻辑）
- */
-@Service
-public class LogCleansingService {
-    
-    private final List<LogCleansingStrategy> strategies;
-    
-    /**
-     * 清洗日志 - 这个逻辑不属于LogEntry实体
-     * 因为它需要协调多个清洗策略
-     */
-    public void cleanse(LogEntry logEntry) {
-        String rawContent = logEntry.getRawContent();
-        
-        // 遍历策略，找到匹配的进行清洗
-        for (LogCleansingStrategy strategy : strategies) {
-            if (strategy.supports(rawContent)) {
-                CleansingResult result = strategy.cleanse(rawContent);
-                logEntry.applyCleansing(result);
-                return;
-            }
-        }
-    }
-}
-```
-
-**何时使用领域服务：**
-
-| 场景 | 示例 |
-|------|------|
-| 操作多个聚合 | 转账服务操作两个账户 |
-| 实现领域算法 | 日志清洗策略选择 |
-| 使用外部服务 | 调用外部验证服务 |
-
-### 仓储（Repository）
-
-仓储是**聚合的集合抽象**，隐藏持久化细节。
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    仓储模式                                  │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   领域层                                                     │
-│   ┌─────────────────────────────────────┐                   │
-│   │   interface LogEntryRepository      │ ← 接口定义        │
-│   │   + save(LogEntry): LogEntry        │                   │
-│   │   + findById(LogId): Optional       │                   │
-│   │   + findByLevel(LogLevel): List     │                   │
-│   └─────────────────────────────────────┘                   │
-│                      ▲                                      │
-│                      │ 实现                                  │
-│   基础设施层          │                                      │
-│   ┌─────────────────────────────────────┐                   │
-│   │   LogEntryRepositoryImpl            │ ← 具体实现        │
-│   │   - LogEntryJpaRepository jpa       │                   │
-│   │   + save(LogEntry): LogEntry        │                   │
-│   │   - toPO(LogEntry): LogEntryPO      │ ← 转换逻辑        │
-│   │   - toDomain(LogEntryPO): LogEntry  │                   │
-│   └─────────────────────────────────────┘                   │
-│                                                             │
-│   关键点：                                                   │
-│   1. 接口定义在领域层（领域概念）                             │
-│   2. 实现放在基础设施层（技术细节）                           │
-│   3. 依赖倒置：领域层不依赖基础设施层                         │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 应用服务（Application Service）
-
-应用服务是**用例的协调者**，不包含业务逻辑。
-
-```java
-/**
- * 应用服务的职责：
- * 1. 编排领域对象和领域服务
- * 2. 事务管理
- * 3. 安全检查
- * 4. DTO转换
- * 
- * 注意：应用服务不包含业务逻辑！
- */
-@Service
-@Transactional
-public class LogApplicationService {
-    
-    private final LogEntryRepository repository;
-    private final LogCleansingService cleansingService;
-    private final LogFileParser logFileParser;  // 端口
-    
-    /**
-     * 用例：上传并处理日志文件
-     * 
-     * 应用服务只做编排：
-     * 1. 调用端口解析文件（技术细节委托给基础设施层）
-     * 2. 创建领域对象
-     * 3. 调用领域服务
-     * 4. 调用仓储保存
-     * 5. 转换为DTO返回
-     */
-    public List<LogOutputDTO> uploadAndProcessFile(MultipartFile file, 
-            String application, String environment) {
-        
-        // 1. 调用端口（不是直接操作文件）
-        ParseResult result = logFileParser.parseWithStats(
-                file.getInputStream(), file.getOriginalFilename());
-        
-        // 2. 创建领域实体
-        List<LogEntry> entries = result.logContents().stream()
-                .map(content -> LogEntry.createRaw(content, source))
-                .toList();
-        
-        // 3. 调用领域服务
-        cleansingService.cleanseAll(entries);
-        
-        // 4. 调用仓储
-        List<LogEntry> saved = repository.saveAll(entries);
-        
-        // 5. 转换DTO
-        return LogAssembler.toOutputDTOList(saved);
-    }
-}
-```
-
-**领域服务 vs 应用服务：**
-
-```
-┌────────────────────────────────────────────────────────────┐
-│      领域服务 (Domain Service)  vs  应用服务 (App Service)  │
-├────────────────────────────────────────────────────────────┤
-│  位于领域层                        位于应用层               │
-│  包含业务逻辑                      不包含业务逻辑           │
-│  操作领域对象                      编排领域对象             │
-│  不关心事务                        管理事务边界             │
-│  例：LogCleansingService           例：LogApplicationService │
-└────────────────────────────────────────────────────────────┘
-```
-
-### 领域事件（Domain Event）
-
-领域事件表示**领域中发生的重要事情**。
-
-```java
-/**
- * 领域事件示例（本项目可扩展）
- */
-public record LogCleansingCompletedEvent(
-    LogId logId,
-    LogLevel level,
-    LocalDateTime occurredAt
-) implements DomainEvent {
-    
-    public static LogCleansingCompletedEvent of(LogEntry entry) {
-        return new LogCleansingCompletedEvent(
-            entry.getId(),
-            entry.getLevel(),
-            LocalDateTime.now()
-        );
-    }
-}
-
-// 事件发布
-public class LogEntry {
-    private List<DomainEvent> events = new ArrayList<>();
-    
-    public void applyCleansing(CleansingResult result) {
-        // ... 清洗逻辑
-        
-        // 发布事件
-        events.add(LogCleansingCompletedEvent.of(this));
-    }
-}
-```
-
----
-
-## 六边形架构
-
-六边形架构（Hexagonal Architecture），也叫**端口-适配器架构**，是DDD常用的架构模式。
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     六边形架构                               │
+│                     六边形架构 (端口-适配器)                   │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │                    ┌───────────────┐                        │
-│                    │    适配器      │                        │
-│   ┌──────┐        │ (REST API)    │                        │
-│   │ 用户  │───────→│               │                        │
+│                    │  REST API     │                        │
+│   ┌──────┐        │  适配器        │                        │
+│   │ 前端  │───────→│ (Controller)  │                        │
 │   └──────┘        └───────┬───────┘                        │
 │                           │                                 │
 │                           ▼                                 │
-│                    ┌──────────────┐                        │
-│                    │     端口      │                        │
-│                    │  (接口定义)   │                        │
-│                    └───────┬──────┘                        │
-│                            │                                │
-│            ┌───────────────┴───────────────┐               │
-│            │                               │               │
-│            ▼                               ▼               │
-│     ┌─────────────┐              ┌─────────────┐           │
-│     │   应用层     │              │   领域层     │           │
-│     │ Application │─────────────→│   Domain    │           │
-│     │             │              │             │           │
-│     └─────────────┘              └─────────────┘           │
-│            │                               ▲               │
-│            │                               │               │
-│            ▼                               │               │
-│     ┌──────────────┐              ┌──────────────┐         │
-│     │     端口      │              │     端口      │         │
-│     │  (仓储接口)   │◀─────────────│  (输出接口)   │         │
-│     └───────┬──────┘              └───────┬──────┘         │
-│             │                              │                │
-│             ▼                              ▼                │
-│     ┌───────────────┐            ┌───────────────┐         │
-│     │    适配器      │            │    适配器      │         │
-│     │ (MySQL实现)   │            │ (文件解析器)   │         │
-│     └───────────────┘            └───────────────┘         │
-│             │                              │                │
-│             ▼                              ▼                │
-│        ┌────────┐                    ┌──────────┐          │
-│        │ MySQL  │                    │ 文件系统  │          │
-│        └────────┘                    └──────────┘          │
+│            ┌──────────────────────────┐                     │
+│            │      应用层 (Application) │                     │
+│            │  - 用例编排              │                     │
+│            │  - 事务管理              │                     │
+│            │  - DTO转换               │                     │
+│            └──────────┬──────────────┘                     │
+│                       │                                     │
+│                       ▼                                     │
+│            ┌──────────────────────────┐                     │
+│            │      领域层 (Domain)      │                     │
+│            │  - 实体 & 值对象          │                     │
+│            │  - 领域服务              │                     │
+│            │  - 仓储接口(端口)         │                     │
+│            │  - 外部服务接口(端口)      │                     │
+│            └──────────┬──────────────┘                     │
+│                       │                                     │
+│                       ▼                                     │
+│       ┌───────────────────────────────────────┐             │
+│       │    基础设施层 (Infrastructure)         │             │
+│       │                                      │             │
+│       │  ┌──────────┐    ┌──────────────┐   │             │
+│       │  │ 仓储实现  │    │  外部服务适配器 │   │             │
+│       │  │(Adapter) │    │   (Adapter)   │   │             │
+│       │  └────┬─────┘    └──────┬───────┘   │             │
+│       │       │                 │           │             │
+│       │       ▼                 ▼           │             │
+│       │  ┌─────────┐    ┌─────────────┐    │             │
+│       │  │ MySQL   │    │ Python/OSHI │    │             │
+│       │  └─────────┘    └─────────────┘    │             │
+│       └───────────────────────────────────────┘             │
 │                                                             │
-│   核心思想：                                                 │
-│   - 领域层是核心，不依赖外部                                  │
+│   关键原则:                                                  │
+│   - 领域层不依赖外部任何层                                    │
 │   - 所有外部交互通过端口和适配器                              │
-│   - 依赖指向内部（依赖倒置）                                  │
+│   - 依赖指向内部(依赖倒置原则)                                │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**本项目的端口-适配器实现：**
+### 核心领域模型类图
 
-```
-端口（领域层定义）              适配器（基础设施层实现）
-───────────────────────────────────────────────────────
-LogEntryRepository          →  LogEntryRepositoryImpl
-LogFileParser               →  LogFileParserImpl
-LogCleansingStrategy        →  StandardLogCleansingStrategy
-                               JsonLogCleansingStrategy
-                               SimpleTextCleansingStrategy
-```
-
----
-
-## DDD实践步骤
-
-### 第一步：事件风暴（Event Storming）
-
-与领域专家一起识别业务流程中的关键事件。
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    事件风暴示例                              │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   时间线 ──────────────────────────────────────────────→    │
-│                                                             │
-│   ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐   │
-│   │ 日志    │   │ 日志    │   │ 日志    │   │ 统计    │   │
-│   │ 上传    │──→│ 解析    │──→│ 清洗    │──→│ 更新    │   │
-│   │         │   │         │   │ 完成    │   │         │   │
-│   └─────────┘   └─────────┘   └─────────┘   └─────────┘   │
-│       ↑             ↑             ↑             ↑          │
-│    命令           命令          事件          事件         │
-│    上传文件       解析文件      清洗完成      统计更新       │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 第二步：识别聚合和限界上下文
-
-```
-1. 识别核心领域概念（名词）
-   → LogEntry, LogLevel, LogSource
-
-2. 找出聚合根
-   → LogEntry 是聚合根（其他概念围绕它）
-
-3. 划分限界上下文
-   → 日志处理上下文（接收、清洗、存储）
-   → 日志分析上下文（统计、搜索、告警）
-```
-
-### 第三步：建立统一语言
-
-```
-┌──────────────────────────────────────────────────────────┐
-│                     统一语言词汇表                        │
-├──────────────────────────────────────────────────────────┤
-│  术语           │ 定义                                   │
-├─────────────────┼────────────────────────────────────────┤
-│  LogEntry       │ 一条日志记录，包含原始内容和清洗结果     │
-│  RawContent     │ 未经处理的原始日志文本                  │
-│  CleanedContent │ 经过清洗后的结构化日志内容              │
-│  LogLevel       │ 日志级别：TRACE/DEBUG/INFO/WARN/ERROR  │
-│  LogSource      │ 日志来源信息：应用、主机、环境          │
-│  Cleansing      │ 日志清洗过程：解析、提取、规范化        │
-│  Strategy       │ 清洗策略：针对不同格式的清洗算法        │
-└──────────────────────────────────────────────────────────┘
-```
-
-### 第四步：设计领域模型
-
-```
-1. 定义实体和值对象
-2. 设计聚合边界
-3. 定义领域服务
-4. 定义仓储接口
-5. 定义领域事件（可选）
-```
-
-### 第五步：实现分层架构
-
-```
-1. 领域层（Domain）
-   - 实体、值对象、领域服务、仓储接口
-   - 零外部依赖
-
-2. 应用层（Application）
-   - 应用服务、DTO、组装器
-   - 依赖领域层
-
-3. 基础设施层（Infrastructure）
-   - 仓储实现、外部服务适配器
-   - 实现领域层定义的接口
-
-4. 接口层（Interface）
-   - REST API、消息处理器
-   - 依赖应用层
-```
-
----
-
-## 本项目DDD实践
-
-### 项目结构对照DDD概念
-
-```
-src/main/java/com/loganalyzer/
-│
-├── domain/                         # 领域层 ★核心★
-│   ├── entity/
-│   │   └── LogEntry.java           # 聚合根
-│   ├── valueobject/
-│   │   ├── LogId.java              # 值对象：标识
-│   │   ├── LogLevel.java           # 值对象：级别
-│   │   ├── LogSource.java          # 值对象：来源
-│   │   └── CleansingResult.java    # 值对象：清洗结果
-│   ├── service/
-│   │   ├── LogCleansingService.java    # 领域服务：清洗
-│   │   ├── LogAnalysisService.java     # 领域服务：分析
-│   │   ├── LogLineDetector.java        # 领域服务：行检测
-│   │   └── LogCleansingStrategy.java   # 策略接口
-│   ├── port/
-│   │   └── LogFileParser.java          # 端口：文件解析
-│   └── repository/
-│       └── LogEntryRepository.java     # 仓储接口
-│
-├── application/                    # 应用层
-│   ├── service/
-│   │   └── LogApplicationService.java  # 应用服务：用例编排
-│   ├── dto/
-│   │   ├── LogInputDTO.java            # 输入DTO
-│   │   ├── LogOutputDTO.java           # 输出DTO
-│   │   └── LogStatisticsDTO.java       # 统计DTO
-│   └── assembler/
-│       └── LogAssembler.java           # DTO转换器
-│
-├── infrastructure/                 # 基础设施层
-│   ├── adapter/
-│   │   └── LogFileParserImpl.java      # 适配器：文件解析实现
-│   ├── persistence/
-│   │   ├── entity/LogEntryPO.java      # 持久化对象
-│   │   └── repository/
-│   │       ├── LogEntryJpaRepository.java
-│   │       └── LogEntryRepositoryImpl.java  # 仓储实现
-│   ├── cleansing/
-│   │   ├── StandardLogCleansingStrategy.java
-│   │   ├── JsonLogCleansingStrategy.java
-│   │   └── SimpleTextCleansingStrategy.java
-│   └── config/
-│       └── DomainServiceConfig.java
-│
-└── interfaces/                     # 接口层
-    └── rest/
-        ├── LogController.java          # REST控制器
-        └── GlobalExceptionHandler.java # 异常处理
-```
-
-### 依赖关系
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      依赖方向（向内）                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   interfaces                                                │
-│       │                                                     │
-│       ▼                                                     │
-│   application ──────────────────┐                           │
-│       │                         │                           │
-│       ▼                         ▼                           │
-│   domain ◀─────────────── infrastructure                    │
-│   (核心)                   (实现domain定义的接口)            │
-│                                                             │
-│   关键原则：                                                 │
-│   - 领域层不依赖任何外层                                     │
-│   - 基础设施层实现领域层定义的接口（依赖倒置）                │
-│   - 外层依赖内层，内层不知道外层存在                         │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## DDD架构分层
-
-### 分层架构图
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Interfaces Layer (接口层)                 │
-│              REST API Controllers, Exception Handler        │
-├─────────────────────────────────────────────────────────────┤
-│                   Application Layer (应用层)                 │
-│           Application Services, DTOs, Assemblers            │
-├─────────────────────────────────────────────────────────────┤
-│                     Domain Layer (领域层)                    │
-│      Entities, Value Objects, Domain Services, Repository   │
-├─────────────────────────────────────────────────────────────┤
-│                Infrastructure Layer (基础设施层)             │
-│     Repository Impl, Cleansing Strategies, Configurations   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 目录结构
-
-```
-src/main/java/com/loganalyzer/
-├── domain/                         # 领域层 - 核心业务逻辑（无外部依赖）
-│   ├── entity/                     
-│   │   └── LogEntry.java           # 聚合根 - 日志条目
-│   ├── valueobject/                
-│   │   ├── LogId.java              # 值对象 - 日志唯一标识
-│   │   ├── LogLevel.java           # 值对象 - 日志级别枚举
-│   │   ├── LogSource.java          # 值对象 - 日志来源信息
-│   │   └── CleansingResult.java    # 值对象 - 清洗结果
-│   ├── service/                    
-│   │   ├── LogCleansingService.java     # 领域服务 - 日志清洗
-│   │   ├── LogCleansingStrategy.java    # 策略接口 - 清洗策略
-│   │   └── LogAnalysisService.java      # 领域服务 - 日志分析
-│   └── repository/                 
-│       └── LogEntryRepository.java      # 仓储接口（领域层定义）
-│
-├── application/                    # 应用层 - 用例编排
-│   ├── service/
-│   │   └── LogApplicationService.java   # 应用服务 - 编排领域逻辑
-│   ├── dto/
-│   │   ├── LogInputDTO.java             # 输入DTO
-│   │   ├── LogOutputDTO.java            # 输出DTO
-│   │   └── LogStatisticsDTO.java        # 统计DTO
-│   └── assembler/
-│       └── LogAssembler.java            # DTO组装器
-│
-├── infrastructure/                 # 基础设施层 - 技术实现
-│   ├── persistence/
-│   │   ├── entity/
-│   │   │   └── LogEntryPO.java          # 持久化对象
-│   │   └── repository/
-│   │       ├── LogEntryJpaRepository.java    # JPA接口
-│   │       └── LogEntryRepositoryImpl.java   # 仓储实现
-│   ├── cleansing/
-│   │   ├── StandardLogCleansingStrategy.java # 标准格式清洗
-│   │   ├── JsonLogCleansingStrategy.java     # JSON格式清洗
-│   │   └── SimpleTextCleansingStrategy.java  # 纯文本清洗
-│   └── config/
-│       └── DomainServiceConfig.java     # 领域服务配置
-│
-├── interfaces/                     # 接口层 - 对外暴露
-│   └── rest/
-│       ├── LogController.java           # REST控制器
-│       └── GlobalExceptionHandler.java  # 全局异常处理
-│
-└── LogAnalyzerApplication.java     # 启动类
-```
-
-### DDD核心概念映射
-
-| DDD概念 | 本项目实现 | 说明 |
-|---------|-----------|------|
-| **聚合根 (Aggregate Root)** | `LogEntry` | 日志条目，聚合的入口点 |
-| **值对象 (Value Object)** | `LogId`, `LogLevel`, `LogSource`, `CleansingResult` | 不可变，无唯一标识 |
-| **领域服务 (Domain Service)** | `LogCleansingService`, `LogAnalysisService` | 跨聚合的业务逻辑 |
-| **仓储 (Repository)** | `LogEntryRepository` (接口) / `LogEntryRepositoryImpl` (实现) | 领域层定义接口，基础设施层实现 |
-| **应用服务 (Application Service)** | `LogApplicationService` | 用例编排，事务边界 |
-| **DTO (Data Transfer Object)** | `LogInputDTO`, `LogOutputDTO` | 跨层数据传输 |
-| **组装器 (Assembler)** | `LogAssembler` | 领域对象与DTO转换 |
-
----
-
-## 类图
-
-### 领域层类图
+#### 1. 工作助手上下文 (Assistant Context)
 
 ```mermaid
 classDiagram
-    class LogEntry {
-        -LogId id
-        -String rawContent
-        -String cleanedContent
-        -LogLevel level
-        -LogSource source
-        -LocalDateTime timestamp
-        -LocalDateTime createdAt
-        -boolean cleaned
-        -Map~String,String~ metadata
-        +createRaw(String, LogSource) LogEntry
-        +reconstitute(...) LogEntry
-        +applyCleansing(CleansingResult) void
-        +isError() boolean
-        +isWarningOrAbove() boolean
-        +getDisplayContent() String
-    }
-
-    class LogId {
-        -String value
-        +generate() LogId
-        +of(String) LogId
-        +getValue() String
-    }
-
-    class LogLevel {
-        <<enumeration>>
-        TRACE
-        DEBUG
-        INFO
-        WARN
-        ERROR
-        FATAL
-        +getPriority() int
-        +getDescription() String
-        +isHigherOrEqualThan(LogLevel) boolean
-        +fromString(String) LogLevel
-    }
-
-    class LogSource {
-        -String application
-        -String host
-        -String environment
-        +getFullIdentifier() String
-    }
-
-    class CleansingResult {
-        -boolean success
-        -String originalContent
-        -String cleanedContent
-        -Map~String,String~ extractedFields
-        -String errorMessage
-        +success(String, String, Map) CleansingResult
-        +failure(String, String) CleansingResult
-    }
-
-    class LogCleansingService {
-        -List~LogCleansingStrategy~ strategies
-        +cleanse(LogEntry) void
-        +cleanseAll(List~LogEntry~) void
-    }
-
-    class LogCleansingStrategy {
-        <<interface>>
-        +getStrategyName() String
-        +supports(String) boolean
-        +cleanse(String) CleansingResult
-    }
-
-    class LogAnalysisService {
-        +analyze(List~LogEntry~) LogStatistics
-        +extractErrors(List~LogEntry~) List~LogEntry~
-        +searchByKeyword(List~LogEntry~, String) List~LogEntry~
-        +groupByApplication(List~LogEntry~) Map
-        +groupByLevel(List~LogEntry~) Map
-    }
-
-    class LogEntryRepository {
-        <<interface>>
-        +save(LogEntry) LogEntry
-        +saveAll(List~LogEntry~) List~LogEntry~
-        +findById(LogId) Optional~LogEntry~
-        +findAll() List~LogEntry~
-        +findByLevel(LogLevel) List~LogEntry~
-        +findErrors() List~LogEntry~
-        +count() long
-    }
-
-    LogEntry --> LogId
-    LogEntry --> LogLevel
-    LogEntry --> LogSource
-    LogEntry ..> CleansingResult
-    LogCleansingService --> LogCleansingStrategy
-    LogCleansingService ..> LogEntry
-    LogAnalysisService ..> LogEntry
-```
-
-### 应用层类图
-
-```mermaid
-classDiagram
-    class LogApplicationService {
-        -LogEntryRepository logEntryRepository
-        -LogCleansingService logCleansingService
-        -LogAnalysisService logAnalysisService
-        +receiveAndProcess(LogInputDTO) LogOutputDTO
-        +batchReceiveAndProcess(List~LogInputDTO~) List~LogOutputDTO~
-        +findById(String) LogOutputDTO
-        +findAll(int, int) List~LogOutputDTO~
-        +findByLevel(String) List~LogOutputDTO~
-        +findErrors() List~LogOutputDTO~
-        +getStatistics() LogStatisticsDTO
-        +searchByKeyword(String) List~LogOutputDTO~
-    }
-
-    class LogInputDTO {
+    class CaseEntry {
+        -CaseId id
+        -String title
+        -String summary
         -String content
-        -String application
-        -String host
-        -String environment
+        -String moduleName
+        -String tags
+        -String source
+        -float[] embedding
+        -LocalDateTime nextReviewDate
+        -int reviewCount
+        +create() CaseEntry
+        +reconstitute() CaseEntry
+        +updateContent()
+        +markReviewed()
+        +getSearchableText()
     }
-
-    class LogOutputDTO {
-        -String id
-        -String rawContent
-        -String cleanedContent
-        -String level
-        -String levelDescription
-        -String application
-        -String host
-        -String environment
-        -LocalDateTime timestamp
-        -boolean cleaned
-        -Map~String,String~ metadata
+    
+    class TodoItem {
+        -TodoId id
+        -String title
+        -String description
+        -int priority
+        -boolean completed
+        -LocalDate dueDate
+        +create() TodoItem
+        +toggleComplete()
     }
-
-    class LogStatisticsDTO {
-        -long totalCount
-        -Map~String,Long~ countByLevel
-        -Map~String,Long~ countByApplication
-        -long errorCount
-        -long warningCount
-        -double errorRate
+    
+    class CaseId {
+        -String value
+        +generate() CaseId
+        +of(String) CaseId
     }
-
-    class LogAssembler {
-        +toOutputDTO(LogEntry) LogOutputDTO
-        +toOutputDTOList(List~LogEntry~) List~LogOutputDTO~
-        +toStatisticsDTO(LogStatistics) LogStatisticsDTO
+    
+    class TodoId {
+        -String value
+        +generate() TodoId
     }
-
-    LogApplicationService --> LogInputDTO
-    LogApplicationService --> LogOutputDTO
-    LogApplicationService --> LogStatisticsDTO
-    LogAssembler ..> LogOutputDTO
-    LogAssembler ..> LogStatisticsDTO
+    
+    class CaseDomainService {
+        +isDuplicate(title, module) boolean
+    }
+    
+    class CaseRepository {
+        <<interface>>
+        +save(CaseEntry)
+        +findById(CaseId)
+        +findAll(page, size)
+        +findByTitleAndModule()
+    }
+    
+    class SemanticSearchPort {
+        <<interface>>
+        +computeEmbedding(text) float[]
+        +semanticSearch(query, candidates, topK)
+        +semanticSearchWithThreshold()
+    }
+    
+    class LlmPort {
+        <<interface>>
+        +chat(message, history) String
+    }
+    
+    CaseEntry --> CaseId
+    TodoItem --> TodoId
+    CaseDomainService --> CaseRepository
 ```
 
-### 基础设施层类图
+#### 2. SSH运维上下文 (SSH Context)
 
 ```mermaid
 classDiagram
-    class LogEntryRepositoryImpl {
-        -LogEntryJpaRepository jpaRepository
-        -ObjectMapper objectMapper
-        +save(LogEntry) LogEntry
-        +findById(LogId) Optional~LogEntry~
-        -toPO(LogEntry) LogEntryPO
-        -toDomain(LogEntryPO) LogEntry
-    }
-
-    class LogEntryPO {
-        -String id
-        -String rawContent
-        -String cleanedContent
-        -String level
-        -String application
+    class Device {
+        -DeviceId id
+        -String name
         -String host
-        -String environment
-        -LocalDateTime timestamp
-        -LocalDateTime createdAt
-        -boolean cleaned
-        -String metadata
+        -Integer port
+        -SshCredentials credentials
+        +create() Device
+        +updateCredentials()
     }
-
-    class StandardLogCleansingStrategy {
-        +getStrategyName() String
-        +supports(String) boolean
-        +cleanse(String) CleansingResult
+    
+    class SshTask {
+        -SshTaskId id
+        -Device device
+        -String command
+        -TaskStatus status
+        -SshTaskResult result
+        +create() SshTask
+        +markCompleted(result)
+        +markFailed(error)
     }
-
-    class JsonLogCleansingStrategy {
-        -ObjectMapper objectMapper
-        +getStrategyName() String
-        +supports(String) boolean
-        +cleanse(String) CleansingResult
+    
+    class SshCredentials {
+        -String username
+        -String password
+        -String privateKey
     }
-
-    class SimpleTextCleansingStrategy {
-        +getStrategyName() String
-        +supports(String) boolean
-        +cleanse(String) CleansingResult
-    }
-
-    class LogCleansingStrategy {
+    
+    class SshExecutor {
         <<interface>>
+        +execute(device, command) SshTaskResult
+        +testConnection(device) boolean
     }
-
-    LogEntryRepositoryImpl --> LogEntryPO
-    StandardLogCleansingStrategy ..|> LogCleansingStrategy
-    JsonLogCleansingStrategy ..|> LogCleansingStrategy
-    SimpleTextCleansingStrategy ..|> LogCleansingStrategy
+    
+    class FileTransferPort {
+        <<interface>>
+        +upload(device, localPath, remotePath)
+        +download(device, remotePath, localPath)
+        +getProgress(taskId) TransferProgress
+    }
+    
+    class DeviceRepository {
+        <<interface>>
+        +save(Device)
+        +findById(DeviceId)
+        +findAll()
+    }
+    
+    Device --> DeviceId
+    Device --> SshCredentials
+    SshTask --> Device
+    SshTask --> SshTaskResult
 ```
 
----
+#### 3. 系统监控上下文 (Monitor Context)
 
-## 时序图
+```mermaid
+classDiagram
+    class MonitorSnapshot {
+        -Long id
+        -CpuInfo cpuInfo
+        -MemoryInfo memoryInfo
+        -List~DiskInfo~ diskInfoList
+        -List~NetworkInfo~ networkInfoList
+        -List~ProcessInfo~ topProcesses
+        -LocalDateTime timestamp
+        +create() MonitorSnapshot
+    }
+    
+    class CpuInfo {
+        -double userUsage
+        -double systemUsage
+        -double idleUsage
+        -int coreCount
+    }
+    
+    class MemoryInfo {
+        -long totalBytes
+        -long usedBytes
+        -long freeBytes
+        +getUsagePercent() double
+    }
+    
+    class DiskInfo {
+        -String mountPoint
+        -long totalSpace
+        -long usedSpace
+        -long freeSpace
+    }
+    
+    class SystemInfoCollector {
+        <<interface>>
+        +collectCpuInfo() CpuInfo
+        +collectMemoryInfo() MemoryInfo
+        +collectDiskInfo() List~DiskInfo~
+        +collectNetworkInfo() List~NetworkInfo~
+        +collectTopProcesses(n) List~ProcessInfo~
+    }
+    
+    MonitorSnapshot --> CpuInfo
+    MonitorSnapshot --> MemoryInfo
+    MonitorSnapshot --> DiskInfo
+```
 
-### 日志接收与清洗流程
+### 核心业务时序图
+
+#### 1. 智能案例搜索流程
 
 ```mermaid
 sequenceDiagram
-    participant Client as 客户端
-    participant Controller as LogController
-    participant AppService as LogApplicationService
-    participant CleansingService as LogCleansingService
-    participant Strategy as LogCleansingStrategy
-    participant Entity as LogEntry
-    participant Repository as LogEntryRepository
-
-    Client->>Controller: POST /api/v1/logs (LogInputDTO)
-    Controller->>AppService: receiveAndProcess(input)
+    participant C as Client
+    participant Ctrl as CaseController
+    participant App as CaseApplicationService
+    participant Port as SemanticSearchPort
+    participant Adapter as PythonSemanticSearchAdapter
+    participant Python as Python进程
+    participant Repo as CaseRepository
     
-    Note over AppService: 1. 创建领域对象
-    AppService->>Entity: createRaw(content, source)
-    Entity-->>AppService: LogEntry
-    
-    Note over AppService: 2. 执行清洗
-    AppService->>CleansingService: cleanse(logEntry)
-    CleansingService->>Strategy: supports(rawContent)?
-    Strategy-->>CleansingService: true/false
-    CleansingService->>Strategy: cleanse(rawContent)
-    Strategy-->>CleansingService: CleansingResult
-    CleansingService->>Entity: applyCleansing(result)
-    
-    Note over AppService: 3. 持久化
-    AppService->>Repository: save(logEntry)
-    Repository-->>AppService: saved LogEntry
-    
-    Note over AppService: 4. 转换DTO
-    AppService-->>Controller: LogOutputDTO
-    Controller-->>Client: 201 Created (JSON)
+    C->>Ctrl: GET /cases/search?query=xxx
+    Ctrl->>App: semanticSearch(query, threshold)
+    App->>Repo: findAll()
+    Repo-->>App: List~CaseEntry~
+    App->>Port: semanticSearchWithThreshold(query, cases, topK, threshold)
+    Port->>Adapter: semanticSearchWithThreshold(...)
+    Adapter->>Python: execute("semantic", "search", params)
+    Python-->>Adapter: JSON结果
+    Adapter-->>Port: List~CaseWithScore~
+    Port-->>App: 匹配结果
+    App-->>Ctrl: List~CaseOutputDTO~
+    Ctrl-->>C: 200 OK + JSON
 ```
 
-### 日志统计分析流程
+#### 2. SSH命令执行流程
 
 ```mermaid
 sequenceDiagram
-    participant Client as 客户端
-    participant Controller as LogController
-    participant AppService as LogApplicationService
-    participant AnalysisService as LogAnalysisService
-    participant Repository as LogEntryRepository
-    participant Assembler as LogAssembler
-
-    Client->>Controller: GET /api/v1/logs/statistics
-    Controller->>AppService: getStatistics()
+    participant C as Client
+    participant Ctrl as SshTaskController
+    participant App as SshTaskApplicationService
+    participant Repo as DeviceRepository
+    participant Port as SshExecutor
+    participant Adapter as SshdExecutorAdapter
+    participant SSH as 远程服务器
     
-    AppService->>Repository: findAll()
-    Repository-->>AppService: List~LogEntry~
-    
-    AppService->>AnalysisService: analyze(logEntries)
-    
-    Note over AnalysisService: 计算统计信息
-    AnalysisService->>AnalysisService: 按级别分组计数
-    AnalysisService->>AnalysisService: 按应用分组计数
-    AnalysisService->>AnalysisService: 计算错误率
-    
-    AnalysisService-->>AppService: LogStatistics
-    
-    AppService->>Assembler: toStatisticsDTO(statistics)
-    Assembler-->>AppService: LogStatisticsDTO
-    
-    AppService-->>Controller: LogStatisticsDTO
-    Controller-->>Client: 200 OK (JSON)
+    C->>Ctrl: POST /ssh/tasks {deviceId, command}
+    Ctrl->>App: executeCommand(deviceId, command)
+    App->>Repo: findById(deviceId)
+    Repo-->>App: Device
+    App->>App: 创建SshTask实体
+    App->>Port: execute(device, command)
+    Port->>Adapter: execute(device, command)
+    Adapter->>SSH: SSH连接+执行
+    SSH-->>Adapter: 执行结果
+    Adapter-->>Port: SshTaskResult
+    Port-->>App: result
+    App->>App: task.markCompleted(result)
+    App->>Repo: save(task)
+    App-->>Ctrl: SshTaskDTO
+    Ctrl-->>C: 200 OK + JSON
 ```
 
-### 清洗策略选择流程
+#### 3. AI智能问答流程
 
 ```mermaid
 sequenceDiagram
-    participant Service as LogCleansingService
-    participant Standard as StandardLogCleansingStrategy
-    participant Json as JsonLogCleansingStrategy
-    participant Simple as SimpleTextCleansingStrategy
-
-    Note over Service: 遍历策略列表（按优先级）
+    participant C as Client
+    participant Ctrl as ChatController
+    participant App as ChatApplicationService
+    participant Sem as SemanticSearchPort
+    participant LLM as LlmPort
+    participant Cfg as SystemConfigService
     
-    Service->>Standard: supports(rawContent)?
-    alt 标准格式日志
-        Standard-->>Service: true
-        Service->>Standard: cleanse(rawContent)
-        Standard-->>Service: CleansingResult
-    else 非标准格式
-        Standard-->>Service: false
-        Service->>Json: supports(rawContent)?
-        alt JSON格式日志
-            Json-->>Service: true
-            Service->>Json: cleanse(rawContent)
-            Json-->>Service: CleansingResult
-        else 非JSON格式
-            Json-->>Service: false
-            Service->>Simple: supports(rawContent)?
-            Simple-->>Service: true (兜底策略)
-            Service->>Simple: cleanse(rawContent)
-            Simple-->>Service: CleansingResult
-        end
+    C->>Ctrl: POST /chat {sessionId, message}
+    Ctrl->>App: chat(sessionId, message)
+    App->>App: 获取对话历史
+    App->>Cfg: getConfig("semantic.threshold")
+    Cfg-->>App: 0.7
+    App->>Sem: semanticSearchWithThreshold(message, cases, 1, 0.7)
+    
+    alt 找到匹配案例(score >= threshold)
+        Sem-->>App: 匹配案例
+        App-->>Ctrl: 案例内容作为回答
+    else 未匹配到案例
+        Sem-->>App: 空结果
+        App->>LLM: chat(message, history)
+        LLM-->>App: AI回答
+        App-->>Ctrl: AI回答
     end
+    
+    Ctrl-->>C: 200 OK + {answer, source}
 ```
 
----
-
-## 快速开始
-
-### 环境要求
-
-- Java 17+
-- Maven 3.6+
-
-### 运行项目
-
-```bash
-# 克隆项目
-cd /Users/jiangling/project/keke
-
-# 编译
-mvn compile
-
-# 运行
-mvn spring-boot:run
-```
-
-### 访问地址
-
-- **API接口**: http://localhost:8080/api/v1/logs
-- **H2数据库控制台**: http://localhost:8080/h2-console
-  - JDBC URL: `jdbc:h2:mem:logdb`
-  - 用户名: `sa`
-  - 密码: (空)
-
----
-
-## API接口文档
-
-### 基础信息
-
-- **Base URL**: `http://localhost:8080/api/v1/logs`
-- **Content-Type**: `application/json`
-
----
-
-### 1. 接收并处理日志
-
-**POST** `/api/v1/logs`
-
-接收单条日志，自动清洗并存储。
-
-**请求体**
-```json
-{
-  "content": "2024-12-17 10:30:45.123 [ERROR] [com.example.UserService] - User login failed",
-  "application": "user-service",
-  "host": "192.168.1.10",
-  "environment": "prod"
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| content | string | 是 | 日志内容（支持标准格式、JSON格式、纯文本） |
-| application | string | 否 | 应用名称 |
-| host | string | 否 | 主机地址 |
-| environment | string | 否 | 环境标识（dev/test/prod） |
-
-**响应** `201 Created`
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "rawContent": "2024-12-17 10:30:45.123 [ERROR] [com.example.UserService] - User login failed",
-  "cleanedContent": "[2024-12-17 10:30:45.123] [ERROR] [com.example.UserService] User login failed",
-  "level": "ERROR",
-  "levelDescription": "错误",
-  "application": "user-service",
-  "host": "192.168.1.10",
-  "environment": "prod",
-  "timestamp": "2024-12-17T10:30:45",
-  "cleaned": true,
-  "metadata": {
-    "level": "ERROR",
-    "timestamp": "2024-12-17 10:30:45.123",
-    "class": "com.example.UserService",
-    "message": "User login failed"
-  }
-}
-```
-
----
-
-### 2. 批量接收日志
-
-**POST** `/api/v1/logs/batch`
-
-**请求体**
-```json
-[
-  {
-    "content": "2024-12-17 10:30:45 [INFO] Application started",
-    "application": "app1"
-  },
-  {
-    "content": "{\"level\":\"ERROR\",\"message\":\"Database connection failed\"}",
-    "application": "app2"
-  }
-]
-```
-
-**响应** `201 Created`
-```json
-[
-  { "id": "...", "level": "INFO", ... },
-  { "id": "...", "level": "ERROR", ... }
-]
-```
-
----
-
-### 3. 查询日志列表
-
-**GET** `/api/v1/logs?page=0&size=20`
-
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| page | int | 0 | 页码（从0开始） |
-| size | int | 20 | 每页数量 |
-
-**响应** `200 OK`
-```json
-[
-  {
-    "id": "...",
-    "level": "ERROR",
-    "application": "user-service",
-    ...
-  }
-]
-```
-
----
-
-### 4. 根据ID查询
-
-**GET** `/api/v1/logs/{id}`
-
-**响应** `200 OK` 或 `404 Not Found`
-
----
-
-### 5. 按级别查询
-
-**GET** `/api/v1/logs/level/{level}`
-
-| 路径参数 | 说明 |
-|----------|------|
-| level | 日志级别：TRACE, DEBUG, INFO, WARN, ERROR, FATAL |
-
-**示例**: `GET /api/v1/logs/level/ERROR`
-
----
-
-### 6. 按应用查询
-
-**GET** `/api/v1/logs/application/{application}`
-
-**示例**: `GET /api/v1/logs/application/user-service`
-
----
-
-### 7. 按时间范围查询
-
-**GET** `/api/v1/logs/time-range?start=2024-01-01T00:00:00&end=2024-12-31T23:59:59`
-
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| start | ISO DateTime | 开始时间 |
-| end | ISO DateTime | 结束时间 |
-
----
-
-### 8. 查询错误日志
-
-**GET** `/api/v1/logs/errors`
-
-返回所有 ERROR 和 FATAL 级别的日志。
-
----
-
-### 9. 关键词搜索
-
-**GET** `/api/v1/logs/search?keyword=xxx`
-
-在日志内容中搜索包含指定关键词的日志。
-
-**示例**: `GET /api/v1/logs/search?keyword=login failed`
-
----
-
-### 10. 获取统计信息
-
-**GET** `/api/v1/logs/statistics`
-
-**响应** `200 OK`
-```json
-{
-  "totalCount": 100,
-  "countByLevel": {
-    "INFO": 60,
-    "WARN": 25,
-    "ERROR": 15
-  },
-  "countByApplication": {
-    "user-service": 40,
-    "order-service": 35,
-    "payment-service": 25
-  },
-  "errorCount": 15,
-  "warningCount": 25,
-  "errorRate": 15.0
-}
-```
-
----
-
-### 11. 删除日志
-
-**DELETE** `/api/v1/logs/{id}`
-
-**响应** `204 No Content`
-
----
-
-### 12. 重新处理未清洗日志
-
-**POST** `/api/v1/logs/reprocess`
-
-重新清洗所有未成功清洗的日志。
-
-**响应** `200 OK`
-
----
-
-### 错误响应格式
-
-```json
-{
-  "timestamp": "2024-12-17T10:30:45",
-  "status": 400,
-  "error": "Validation Error",
-  "message": "请求参数验证失败",
-  "details": {
-    "content": "日志内容不能为空"
-  }
-}
-```
-
----
-
-## 支持的日志格式
-
-### 1. 标准格式
-
-```
-2024-12-17 10:30:45.123 [INFO] [com.example.MyClass] - This is a log message
-2024-12-17T10:30:45 ERROR MyClass - Error occurred
-```
-
-### 2. JSON格式
-
-```json
-{"timestamp":"2024-12-17T10:30:45","level":"INFO","message":"User logged in","userId":"123"}
-{"time":"2024-12-17T10:30:45","severity":"ERROR","msg":"Connection failed"}
-```
-
-### 3. 纯文本格式
-
-```
-This is a simple log message with ERROR level
-Application started successfully
+#### 4. 文件传输流程
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant Ctrl as FileTransferController
+    participant App as FileTransferApplicationService
+    participant Port as FileTransferPort
+    participant Adapter as SftpTransferManager
+    participant SFTP as 远程服务器
+    
+    C->>Ctrl: POST /ssh/file/upload {deviceId, file}
+    Ctrl->>App: uploadFile(deviceId, file, remotePath)
+    App->>App: 创建传输任务
+    App->>Port: upload(device, localPath, remotePath)
+    Port->>Adapter: upload(...)
+    
+    loop 传输进度
+        Adapter->>SFTP: SFTP传输分片
+        Adapter->>Adapter: 更新进度
+    end
+    
+    Adapter-->>Port: 传输完成
+    Port-->>App: success
+    App-->>Ctrl: TransferProgressDTO
+    Ctrl-->>C: 200 OK
+    
+    Note over C,SFTP: 客户端可轮询 GET /ssh/file/progress/{taskId} 获取实时进度
 ```
 
 ---
@@ -1569,33 +834,526 @@ Application started successfully
 
 ### 后端技术
 
-- **框架**: Spring Boot 3.2
-- **语言**: Java 21
-- **数据库**: MySQL 8.0
-- **ORM**: Spring Data JPA / Hibernate
-- **JSON处理**: Jackson
-- **构建工具**: Maven
-- **系统监控**: OSHI 6.4.0
-- **Excel处理**: Apache POI 5.2.3
-- **Java-Python集成**: Py4J 0.10.9.7
+| 技术 | 版本 | 用途 |
+|------|------|------|
+| Java | 21 | 核心语言 |
+| Spring Boot | 3.2.0 | 应用框架 |
+| Spring Data JPA | 3.2.0 | ORM框架 |
+| MySQL | 8.0 | 关系型数据库 |
+| Lombok | 1.18.30 | 简化代码 |
+| OSHI | 6.4.0 | 系统信息采集 |
+| Apache POI | 5.2.3 | Excel处理 |
+| JSch | 0.1.55 | SSH连接 |
+| Py4J | 0.10.9.7 | Java-Python集成 |
 
 ### 前端技术
 
-- **框架**: Vue 3
-- **构建工具**: Vite
-- **UI组件库**: Element Plus
-- **HTTP客户端**: Axios
-- **路由**: Vue Router 4
+| 技术 | 版本 | 用途 |
+|------|------|------|
+| Vue | 3.4 | 前端框架 |
+| Vite | 5.0 | 构建工具 |
+| Element Plus | 2.4 | UI组件库 |
+| Axios | 1.6 | HTTP客户端 |
+| Vue Router | 4.2 | 路由管理 |
 
-### Python 集成
+### Python AI引擎
 
-- **Python 版本**: 3.8+
-- **语义搜索**: sentence-transformers
-- **模型**: paraphrase-multilingual-MiniLM-L12-v2
-- **Java-Python通信**: Py4J
+| 技术 | 版本 | 用途 |
+|------|------|------|
+| Python | 3.8+ | AI引擎语言 |
+| sentence-transformers | 2.2.2 | 语义向量模型 |
+| Py4J | 0.10.9.7 | Java通信 |
+| 千问API | - | 大语言模型 |
 
 ---
 
-## License
+## 快速开始
+
+### 环境要求
+
+- **Java**: 21+
+- **Maven**: 3.6+
+- **MySQL**: 8.0+
+- **Node.js**: 18+ (前端开发)
+- **Python**: 3.8+ (AI功能)
+
+### 1. 克隆项目
+
+```bash
+git clone <repository-url>
+cd keke
+```
+
+### 2. 配置数据库
+
+```sql
+CREATE DATABASE keke DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+修改 `src/main/resources/application.yml`:
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/keke
+    username: your_username
+    password: your_password
+```
+
+### 3. 配置Python环境(可选)
+
+```bash
+cd python
+pip install -r requirements.txt
+```
+
+### 4. 启动后端
+
+```bash
+mvn clean install
+mvn spring-boot:run
+```
+
+后端访问: http://localhost:8080
+
+### 5. 启动前端(开发模式)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+前端访问: http://localhost:5173
+
+### 6. 生产构建
+
+```bash
+# 前端构建
+cd frontend
+npm run build
+
+# 后端会自动加载构建后的静态资源
+mvn clean package
+java -jar target/keke.jar
+```
+
+---
+
+## API文档
+
+### 基础信息
+
+- **Base URL**: `http://localhost:8080/api`
+- **Content-Type**: `application/json`
+
+### 工作助手API
+
+#### 案例管理
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | /cases | 添加案例(带去重) |
+| PUT | /cases/{id} | 更新案例 |
+| DELETE | /cases/{id} | 删除案例 |
+| GET | /cases | 分页查询案例 |
+| GET | /cases/{id} | 获取单个案例 |
+| GET | /cases/module/{module} | 按模块查询 |
+| GET | /cases/search | 语义搜索案例 |
+| GET | /cases/export | 导出Excel |
+| POST | /cases/import | 导入Excel |
+| GET | /cases/review/due | 获取待复习案例 |
+| PATCH | /cases/{id}/review-next | 标记已复习 |
+
+#### 待办管理
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | /todos | 添加待办 |
+| PUT | /todos/{id} | 更新待办 |
+| DELETE | /todos/{id} | 删除待办 |
+| GET | /todos/today | 今日待办 |
+| PATCH | /todos/{id}/toggle | 切换完成状态 |
+
+#### 智能问答
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | /chat | 发送消息(支持案例匹配+LLM) |
+| DELETE | /chat/{sessionId} | 清空对话历史 |
+
+### 日志分析API
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | /logs/upload | 上传日志文件 |
+| GET | /logs | 分页查询日志 |
+| GET | /logs/{id} | 获取单条日志 |
+| GET | /logs/statistics | 统计信息 |
+| GET | /logs/search | 关键词搜索 |
+| DELETE | /logs/{id} | 删除日志 |
+
+### 系统监控API
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| GET | /monitor/snapshot | 当前系统快照 |
+| POST | /monitor/detect | 手动触发检测 |
+| GET | /monitor/history | 历史监控数据 |
+| POST | /monitor/tasks | 创建监控任务 |
+| GET | /monitor/tasks | 获取监控任务列表 |
+| GET | /monitor/tasks/{taskId} | 获取单个监控任务 |
+| POST | /monitor/tasks/start | 启动监控任务 |
+| POST | /monitor/tasks/pause | 暂停监控任务 |
+| POST | /monitor/tasks/resume | 恢复监控任务 |
+| POST | /monitor/tasks/stop | 停止监控任务 |
+| POST | /monitor/tasks/delete | 删除监控任务 |
+| GET | /monitor/export | 导出当前快照Excel |
+| GET | /monitor/export/history | 导出历史数据Excel |
+| POST | /monitor/export/tasks | 导出任务数据Excel |
+
+### SSH运维API
+
+#### 设备管理 (/api/ssh/devices)
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | / | 添加设备 |
+| PUT | /{id} | 更新设备 |
+| DELETE | /{id} | 删除设备 |
+| GET | /{id} | 获取单个设备 |
+| GET | / | 获取设备列表 |
+| GET | /groups | 获取设备分组 |
+| POST | /{id}/test | 测试单个连接 |
+| POST | /batch-test | 批量测试连接 |
+| POST | /batch | 批量导入设备 |
+| GET | /export | 导出设备(不含密码) |
+
+#### SSH任务 (/api/ssh/tasks)
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | /command | 执行SSH命令 |
+| POST | /upload | 文件上传任务 |
+| POST | /download | 文件下载任务 |
+| GET | /{id} | 获取任务详情 |
+| GET | / | 任务历史列表 |
+| DELETE | /{id} | 删除任务 |
+
+#### 文件传输 (/api/ssh/transfer)
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | /upload | 上传文件 |
+| POST | /download | 下载文件 |
+| GET | /progress/{transferId} | 获取传输进度 |
+| POST | /progress/batch | 批量获取进度 |
+| GET | /active | 获取活动传输列表 |
+| POST | /cancel/{transferId} | 取消传输 |
+| POST | /resume | 恢复传输 |
+
+### 系统配置API
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| GET | /config/llm | 获取LLM配置 |
+| POST | /config/llm | 更新LLM配置 |
+| GET | /config/{key} | 获取单个配置 |
+| PUT | /config/{key} | 更新单个配置 |
+| DELETE | /config/{key} | 删除配置项 |
+
+---
+
+## 设计模式
+
+### 1. 策略模式 (Strategy Pattern)
+
+**应用场景**: 日志清洗策略
+
+```java
+// 策略接口
+public interface LogCleansingStrategy {
+    String getStrategyName();
+    boolean supports(String rawContent);
+    CleansingResult cleanse(String rawContent);
+}
+
+// 具体策略
+@Component
+public class StandardLogCleansingStrategy implements LogCleansingStrategy {...}
+
+@Component
+public class JsonLogCleansingStrategy implements LogCleansingStrategy {...}
+
+// 上下文
+@Service
+public class LogCleansingService {
+    private final List<LogCleansingStrategy> strategies;
+    
+    public void cleanse(LogEntry logEntry) {
+        for (LogCleansingStrategy strategy : strategies) {
+            if (strategy.supports(logEntry.getRawContent())) {
+                CleansingResult result = strategy.cleanse(logEntry.getRawContent());
+                logEntry.applyCleansing(result);
+                return;
+            }
+        }
+    }
+}
+```
+
+### 2. 建造者模式 (Builder Pattern)
+
+**应用场景**: Excel文件构建
+
+```java
+// Excel建造者
+byte[] excel = ExcelBuilder.create()
+    .sheet("用户列表")
+        .headers("姓名", "年龄", "邮箱")
+        .columnWidths(5000, 3000, 8000)
+        .data(users, user -> new Object[]{
+            user.getName(), 
+            user.getAge(), 
+            user.getEmail()
+        })
+    .sheet("订单列表")
+        .headers("订单号", "金额", "状态")
+        .data(orders, order -> new Object[]{
+            order.getId(), 
+            order.getAmount(), 
+            order.getStatus()
+        })
+    .build();
+```
+
+### 3. 适配器模式 (Adapter Pattern)
+
+**应用场景**: Python语义搜索适配
+
+```java
+// 端口(领域层定义)
+public interface SemanticSearchPort {
+    float[] computeEmbedding(String text);
+    List<CaseWithScore> semanticSearch(String query, List<CaseEntry> candidates, int topK);
+}
+
+// 适配器(基础设施层实现)
+@Component
+public class PythonSemanticSearchAdapter implements SemanticSearchPort {
+    private final PythonBridge pythonBridge;
+    private final SemanticSearchPort fallbackAdapter;  // 降级方案
+    
+    @Override
+    public float[] computeEmbedding(String text) {
+        if (!pythonBridge.isAvailable()) {
+            return fallbackAdapter.computeEmbedding(text);
+        }
+        
+        String result = pythonBridge.execute("semantic", "compute_embedding", 
+            Map.of("text", text));
+        return parseEmbedding(result);
+    }
+}
+```
+
+### 4. 工厂方法模式 (Factory Method)
+
+**应用场景**: 领域实体创建
+
+```java
+public class CaseEntry {
+    // 工厂方法:创建新案例
+    public static CaseEntry create(String title, String summary, ...) {
+        CaseEntry entry = new CaseEntry();
+        entry.id = CaseId.generate();
+        entry.title = title;
+        entry.summary = summary;
+        entry.createdAt = LocalDateTime.now();
+        entry.updatedAt = LocalDateTime.now();
+        return entry;
+    }
+    
+    // 重建方法:从数据库恢复
+    public static CaseEntry reconstitute(CaseId id, String title, ...) {
+        CaseEntry entry = new CaseEntry();
+        entry.id = id;
+        entry.title = title;
+        // ...
+        return entry;
+    }
+}
+```
+
+### 5. 模板方法模式 (Template Method)
+
+**应用场景**: Excel导出流程
+
+```java
+public abstract class BaseExcelService<T> {
+    // 模板方法
+    public final byte[] export() throws IOException {
+        List<String> groups = getGroups();
+        ExcelBuilder builder = ExcelBuilder.create();
+        
+        for (String group : groups) {
+            List<T> data = loadData(group);
+            builder.sheet(group)
+                .headers(getHeaders())
+                .columnWidths(getColumnWidths())
+                .data(data, this::mapToRow);
+        }
+        
+        return builder.build();
+    }
+    
+    // 抽象方法:子类实现
+    protected abstract List<String> getGroups();
+    protected abstract List<T> loadData(String group);
+    protected abstract String[] getHeaders();
+    protected abstract int[] getColumnWidths();
+    protected abstract Object[] mapToRow(T item);
+}
+```
+
+### 6. 依赖注入 (Dependency Injection)
+
+**应用场景**: 全局应用
+
+```java
+@Service
+public class CaseApplicationService {
+    private final CaseRepository caseRepository;
+    private final SemanticSearchPort semanticSearchPort;
+    private final CaseDomainService caseDomainService;
+    
+    // 构造函数注入(推荐)
+    public CaseApplicationService(
+            CaseRepository caseRepository,
+            SemanticSearchPort semanticSearchPort,
+            CaseDomainService caseDomainService) {
+        this.caseRepository = caseRepository;
+        this.semanticSearchPort = semanticSearchPort;
+        this.caseDomainService = caseDomainService;
+    }
+}
+```
+
+---
+
+## SOLID原则应用
+
+### 单一职责原则 (SRP)
+
+- ✅ **应用服务**: 只负责用例编排,不包含业务逻辑
+- ✅ **领域服务**: 只包含领域逻辑,不处理技术细节
+- ✅ **仓储**: 只负责持久化,不涉及业务规则
+
+### 开闭原则 (OCP)
+
+- ✅ **策略模式**: 新增清洗策略无需修改LogCleansingService
+- ✅ **端口-适配器**: 可替换不同的SemanticSearchPort实现
+
+### 里氏替换原则 (LSP)
+
+- ✅ **接口一致性**: 所有LogCleansingStrategy实现可互换
+- ✅ **多态应用**: PythonSemanticSearchAdapter和SimpleSemanticSearchAdapter可替换
+
+### 接口隔离原则 (ISP)
+
+- ✅ **小接口**: SemanticSearchPort只定义必要方法
+- ✅ **职责分离**: LlmPort和SemanticSearchPort分离
+
+### 依赖倒置原则 (DIP)
+
+- ✅ **依赖抽象**: 应用层依赖仓储接口,不依赖实现
+- ✅ **端口定义在领域层**: 基础设施层实现领域层定义的接口
+
+---
+
+## 开发规范
+
+### 阿里Java编码规范
+
+1. **命名规范**
+   - 类名使用PascalCase: `CaseEntry`, `LogCleansingService`
+   - 方法名使用camelCase: `addCase()`, `isDuplicate()`
+   - 常量使用UPPER_SNAKE_CASE: `MAX_HISTORY_SIZE`
+
+2. **注释规范**
+   - 类级别注释说明DDD概念
+   - 公开方法必须有JavaDoc注释
+   - 关键业务逻辑添加行内注释
+
+3. **异常处理**
+   - 使用自定义业务异常
+   - 统一异常处理(GlobalExceptionHandler)
+   - 记录异常日志
+
+4. **日志规范**
+   - 使用@Slf4j注解
+   - 日志级别: DEBUG/INFO/WARN/ERROR
+   - 关键操作记录入参和结果
+
+### 代码质量
+
+- ✅ 使用Lombok减少样板代码
+- ✅ 避免通配符导入(import *)
+- ✅ 方法行数控制在50行以内
+- ✅ 类行数控制在500行以内
+- ✅ 圈复杂度控制在10以内
+
+---
+
+## 项目亮点
+
+### 1. 完整的DDD实践
+
+- ✅ 按限界上下文划分模块
+- ✅ 清晰的分层架构(领域层零依赖)
+- ✅ 六边形架构(端口-适配器模式)
+- ✅ 统一语言贯穿代码和文档
+
+### 2. 多语言协同
+
+- ✅ Java处理业务逻辑和持久化
+- ✅ Python提供AI能力(语义搜索、LLM)
+- ✅ Py4J实现Java-Python无缝集成
+- ✅ 任务队列+进程池架构
+
+### 3. 智能语义搜索
+
+- ✅ 精确匹配优先(100% title完全相同)
+- ✅ 包含匹配(95% title包含查询)
+- ✅ 语义匹配(可配置阈值,默认70%)
+- ✅ Top-K结果返回
+- ✅ 向量维度自动检测和重算
+
+### 4. 企业级特性
+
+- ✅ 敏感信息AES加密存储
+- ✅ 统一异常处理
+- ✅ 分页查询支持
+- ✅ Excel导入导出
+- ✅ 定时任务调度
+- ✅ 跨域CORS配置
+
+### 5. 前端体验
+
+- ✅ ChatGPT风格对话界面
+- ✅ 右侧滑出面板(可拖动缩放)
+- ✅ 响应式设计
+- ✅ Element Plus组件
+- ✅ 实时系统监控仪表盘
+
+---
+
+## 许可证
 
 MIT License
+
+---
+
+## 联系方式
+
+如有问题或建议,欢迎提Issue或PR。

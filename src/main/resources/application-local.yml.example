@@ -7,3 +7,20 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/log_analyzer?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: your_username
     password: your_password
+
+# ================================
+# LLM配置（智能助手AI后端）
+# ================================
+# 阿里云千问API Key
+# 获取地址: https://dashscope.console.aliyun.com/
+# 也可通过环境变量 DASHSCOPE_API_KEY 设置
+llm:
+  qwen:
+    api-key: sk-your-api-key-here
+
+# 本地Ollama配置（可选）
+# Ollama官网: https://ollama.ai/
+# 安装后运行: ollama pull qwen2.5:1.5b
+# llm:
+#   ollama:
+#     base-url: http://localhost:11434
