@@ -170,6 +170,21 @@
             </div>
             <el-switch v-model="settings.semanticSearch" />
           </div>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">语义匹配阈值</span>
+              <span class="setting-desc">案例匹配的最低相似度要求（百分比）</span>
+            </div>
+            <el-input-number 
+              v-model="llmSettings.semanticThreshold" 
+              :min="50" 
+              :max="100"
+              :step="5"
+              size="default"
+            />
+            <span style="margin-left: 8px; color: #909399;">%</span>
+          </div>
         </div>
       </div>
       
@@ -205,7 +220,8 @@ const llmSettings = ref({
   qwenApiKey: '',
   qwenApiKeyHasValue: false,
   ollamaBaseUrl: '',
-  defaultBackend: 'qwen'  // 默认使用千问
+  defaultBackend: 'qwen',  // 默认使用千问
+  semanticThreshold: 70    // 语义匹配阈值（百分比）
 })
 
 const defaultSettings = {
@@ -247,6 +263,12 @@ const loadSettings = async () => {
         llmSettings.value.ollamaBaseUrl = cfg.value || ''
       } else if (cfg.key === 'llm.default_backend') {
         llmSettings.value.defaultBackend = cfg.value || 'mock'
+      } else if (cfg.key === 'chat.semantic.threshold') {
+        // 阈值保存为0-1的小数，显示为百分比
+        const val = parseFloat(cfg.value)
+        if (!isNaN(val)) {
+          llmSettings.value.semanticThreshold = Math.round(val * 100)
+        }
       }
     })
   } catch (e) {
@@ -270,6 +292,8 @@ const saveSettings = async () => {
     if (llmSettings.value.defaultBackend) {
       llmConfigs['llm.default_backend'] = llmSettings.value.defaultBackend
     }
+    // 保存语义匹配阈值（转换为0-1的小数）
+    llmConfigs['chat.semantic.threshold'] = (llmSettings.value.semanticThreshold / 100).toFixed(2)
     
     if (Object.keys(llmConfigs).length > 0) {
       await configApi.saveLlmConfigs(llmConfigs)

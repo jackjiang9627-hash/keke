@@ -36,7 +36,8 @@ class SemanticPlugin(PluginBase):
         return [
             'compute_embedding',
             'compute_batch_embeddings',
-            'compute_similarity'
+            'compute_similarity',
+            'semantic_search'  # 语义搜索：返回匹配的案例ID和相似度
         ]
     
     def initialize(self):
@@ -63,6 +64,8 @@ class SemanticPlugin(PluginBase):
             return self._compute_batch_embeddings(params)
         elif method == 'compute_similarity':
             return self._compute_similarity(params)
+        elif method == 'semantic_search':
+            return self._semantic_search(params)
         else:
             raise ValueError(f"未知方法: {method}, 支持的方法: {self.get_methods()}")
     
@@ -141,6 +144,111 @@ class SemanticPlugin(PluginBase):
             )
         
         return {'similarity': float(similarity)}
+    
+    def _semantic_search(self, params: dict) -> dict:
+        """
+        语义搜索：计算查询与候选案例的相似度，返回超过阈值的结果
+        
+        所有计算在Python端完成，Java端不参与计算
+        
+        Args:
+            params: {
+                "query": "查询文本",
+                "candidates": [
+                    {"id": "case1", "text": "案例文本1", "embedding": [...]},
+                    {"id": "case2", "text": "案例文本2", "embedding": [...]},
+                    ...
+                ],
+                "threshold": 0.7,  # 相似度阈值
+                "top_k": 3         # 最多返回数量
+            }
+            
+        Returns:
+            {
+                "matches": [
+                    {"id": "case1", "score": 0.85},
+                    {"id": "case2", "score": 0.72}
+                ]
+            }
+        """
+        query = params.get('query', '')
+        candidates = params.get('candidates', [])
+        threshold = params.get('threshold', 0.7)
+        top_k = params.get('top_k', 3)
+        
+        if not query:
+            raise ValueError("query参数不能为空")
+        
+        if not candidates:
+            return {'matches': []}
+        
+        self.logger.info(f"语义搜索: query={query[:50]}..., 候选数={len(candidates)}, 阈值={threshold}")
+        
+        # 计算查询向量
+        if self.model is not None:
+            query_embedding = self.model.encode(query, convert_to_numpy=True)
+        else:
+            query_embedding = np.array(self._simple_hash_embedding(query))
+        
+        query_dim = len(query_embedding)
+        self.logger.debug(f"查询向量维度: {query_dim}")
+        
+        # 计算每个候选的相似度
+        results = []
+        query_lower = query.strip().lower()
+        
+        for candidate in candidates:
+            case_id = candidate.get('id', '')
+            case_text = candidate.get('text', '')
+            case_embedding = candidate.get('embedding')
+            
+            # 精确匹配优先：如果查询完全包含在案例文本中，或完全相等，给高分
+            if case_text:
+                case_text_lower = case_text.strip().lower()
+                # 完全匹配
+                if query_lower == case_text_lower:
+                    results.append({'id': case_id, 'score': 1.0})
+                    self.logger.info(f"精确匹配: id={case_id}, text='{case_text}'")
+                    continue
+                # 查询是案例文本的子串（标题包含查询）
+                if query_lower in case_text_lower:
+                    results.append({'id': case_id, 'score': 0.95})
+                    self.logger.info(f"包含匹配: id={case_id}, text='{case_text}'")
+                    continue
+                # 案例文本是查询的子串
+                if case_text_lower in query_lower:
+                    results.append({'id': case_id, 'score': 0.90})
+                    self.logger.info(f"反向包含匹配: id={case_id}, text='{case_text}'")
+                    continue
+            
+            # 语义匹配
+            # 如果有预计算的向量且维度匹配，则直接使用；否则实时计算
+            if case_embedding and len(case_embedding) == query_dim:
+                case_vec = np.array(case_embedding)
+            elif case_text:
+                # 维度不匹配或无向量，实时计算
+                if self.model is not None:
+                    case_vec = self.model.encode(case_text, convert_to_numpy=True)
+                else:
+                    case_vec = np.array(self._simple_hash_embedding(case_text))
+            else:
+                continue
+            
+            # 计算相似度
+            similarity = self._cosine_similarity(query_embedding, case_vec)
+            
+            if similarity >= threshold:
+                results.append({'id': case_id, 'score': float(similarity)})
+        
+        # 按相似度降序排序
+        results.sort(key=lambda x: x['score'], reverse=True)
+        
+        # 取Top K
+        matches = results[:top_k]
+        
+        self.logger.info(f"语义搜索完成: 匹配数={len(matches)}")
+        
+        return {'matches': matches}
     
     def _cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
         """计算余弦相似度"""

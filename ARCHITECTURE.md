@@ -30,7 +30,7 @@
 按照DDD的限界上下文(Bounded Context)原则，将系统划分为四个模块：
 
 ```
-com.loganalyzer/
+com.keke/
 ├── LogAnalyzerApplication.java          # Spring Boot启动类
 │
 ├── shared/                              # 共享内核（公共代码）

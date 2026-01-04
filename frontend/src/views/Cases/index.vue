@@ -112,6 +112,7 @@
       title="新增案例"
       width="700px"
       destroy-on-close
+      draggable
     >
       <el-form :model="addForm" label-width="80px">
         <el-form-item label="标题" required>
@@ -152,6 +153,7 @@
       title="编辑案例"
       width="700px"
       destroy-on-close
+      draggable
     >
       <el-form :model="editForm" label-width="80px">
         <el-form-item label="标题" required>
@@ -197,6 +199,7 @@
       title="📚 今日复习提醒"
       width="600px"
       :close-on-click-modal="false"
+      draggable
     >
       <div class="review-dialog-content">
         <p class="review-hint">您有 <strong>{{ todayReviewCases.length }}</strong> 个案例需要复习：</p>

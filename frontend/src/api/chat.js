@@ -2,10 +2,11 @@ import request from './request'
 
 export default {
   // 发送消息
-  send(message, backend = null, model = null) {
+  send(message, backend = null, model = null, sessionId = null) {
     const data = { message }
     if (backend) data.backend = backend
     if (model) data.model = model
+    if (sessionId) data.sessionId = sessionId
     return request.post('/api/chat', data)
   },
   

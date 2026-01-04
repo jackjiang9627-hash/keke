@@ -126,6 +126,43 @@ class QwenBackend(LlmBackend):
             'qwen-max',
             'qwen-max-longcontext'
         ]
+    
+    def chat_stream(self, messages: List[Dict], model: str = None, api_key: str = None, **kwargs) -> List[Dict]:
+        """流式对话，返回分块列表"""
+        if not self._sdk_available:
+            raise RuntimeError("千问后端不可用：dashscope SDK 未安装")
+        
+        effective_api_key = api_key or self.api_key
+        if not effective_api_key:
+            raise RuntimeError("千问后端不可用：未配置 API Key")
+        
+        import dashscope
+        from dashscope import Generation
+        
+        dashscope.api_key = effective_api_key
+        model = model or 'qwen-turbo'
+        
+        chunks = []
+        
+        # 使用流式调用
+        responses = Generation.call(
+            model=model,
+            messages=messages,
+            result_format='message',
+            stream=True,
+            incremental_output=True  # 增量输出
+        )
+        
+        for response in responses:
+            if response.status_code == 200:
+                if response.output and response.output.choices:
+                    content = response.output.choices[0].message.content
+                    if content:
+                        chunks.append({'content': content})
+            else:
+                self.logger.error(f"流式调用错误: {response.code} - {response.message}")
+        
+        return chunks
 
 
 class OllamaBackend(LlmBackend):
@@ -249,6 +286,7 @@ class LlmPlugin(PluginBase):
     def get_methods(self) -> list:
         return [
             'chat',
+            'chat_stream',
             'list_models',
             'get_backends',
             'set_default_backend'
@@ -280,6 +318,8 @@ class LlmPlugin(PluginBase):
         """执行方法"""
         if method == 'chat':
             return self._chat(params)
+        elif method == 'chat_stream':
+            return self._chat_stream(params)
         elif method == 'list_models':
             return self._list_models(params)
         elif method == 'get_backends':
@@ -344,6 +384,57 @@ class LlmPlugin(PluginBase):
                     'model': 'mock'
                 }
             raise
+    
+    def _chat_stream(self, params: dict) -> dict:
+        """
+        流式对话
+        
+        Args:
+            params: {
+                "messages": [{"role": "user", "content": "..."}],
+                "backend": "qwen/ollama/mock" (可选),
+                "model": "模型名称" (可选),
+                "api_key": "API密钥" (可选)
+            }
+            
+        Returns:
+            {"chunks": [{"content": "..."}], "backend": "...", "model": "..."}
+        """
+        messages = params.get('messages', [])
+        backend_name = params.get('backend', self.default_backend)
+        model = params.get('model')
+        api_key = params.get('api_key')
+        
+        if not messages:
+            raise ValueError("messages参数不能为空")
+        
+        # 获取后端
+        backend = self.backends.get(backend_name)
+        
+        # 检查后端是否支持流式输出
+        if hasattr(backend, 'chat_stream') and backend.is_available():
+            try:
+                chunks = backend.chat_stream(messages, model, api_key=api_key)
+                return {
+                    'chunks': chunks,
+                    'backend': backend_name,
+                    'model': model or 'default'
+                }
+            except Exception as e:
+                self.logger.error(f"流式调用失败: {e}")
+        
+        # 降级到普通 chat，然后分块返回
+        self.logger.info(f"后端 {backend_name} 不支持流式，使用普通模式")
+        result = self._chat(params)
+        reply = result.get('reply', '')
+        
+        # 将完整回复分块
+        chunks = [{'content': reply}] if reply else []
+        return {
+            'chunks': chunks,
+            'backend': result.get('backend'),
+            'model': result.get('model')
+        }
     
     def _list_models(self, params: dict) -> dict:
         """
